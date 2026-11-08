@@ -135,6 +135,17 @@ button:focus-visible,.ship:focus-visible{outline:2px solid var(--holo);outline-o
 .chip.down .chip-money{color:var(--red)}
 .chip-money.neg{color:var(--red)}
 .potchip{font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
+#potPill{position:absolute;top:calc(env(safe-area-inset-top,0px) + 66px);right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:10px;padding:7px 18px 7px 7px;border-radius:999px;cursor:pointer;color:var(--text);font:inherit;text-align:left;transition:transform .3s var(--ease),box-shadow .5s var(--ease);animation:fadeUp .6s var(--ease) both}
+#potPill:hover{transform:translateY(-1px)}
+#potPill:active{transform:scale(.97)}
+#potPill .pot-ic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--gold);background:rgba(255,195,90,.14);box-shadow:0 0 18px rgba(255,195,90,.25)}
+#potPill .pot-ic svg{width:21px;height:21px;animation:spin 14s linear infinite}
+.pot-tx{display:flex;flex-direction:column;line-height:1.15}
+.pot-lbl{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+.pot-val{font-family:var(--mono);font-size:17px;color:var(--gold);font-variant-numeric:tabular-nums;transition:color .4s var(--ease)}
+#potPill.up{box-shadow:0 0 0 1px rgba(255,195,90,.6),0 0 34px rgba(255,195,90,.4)}
+#potPill.up .pot-val{color:#ffe2a3}
+#potPill.down .pot-val{color:var(--green)}
 .potchip .chip-money{color:var(--gold)}
 .potchip:hover{background:var(--glass-strong)}
 .chip-props{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
@@ -178,6 +189,11 @@ button:focus-visible,.ship:focus-visible{outline:2px solid var(--holo);outline-o
   .chip-ic{width:30px;height:30px;grid-row:span 2}
   .chip-money{grid-column:2;font-size:13px}
   .chip-meta{display:none}
+  #players{right:122px;padding-right:20px;-webkit-mask-image:linear-gradient(90deg,#000 78%,transparent);mask-image:linear-gradient(90deg,#000 78%,transparent)}
+  #potPill{top:calc(env(safe-area-inset-top,0px) + 64px);right:10px;padding:5px 12px 5px 5px;gap:7px}
+  #potPill .pot-ic{width:28px;height:28px}
+  #potPill .pot-ic svg{width:17px;height:17px}
+  .pot-val{font-size:14px}
   #players{align-items:flex-start;max-height:none}
   .ptag .l{display:none}
   .ptag .s{display:inline}
@@ -334,6 +350,7 @@ button:focus-visible,.ship:focus-visible{outline:2px solid var(--holo);outline-o
 <section id="v-lobby" class="view is-hidden"><div class="center-card glass" id="lobbyCard"></div></section>
 <section id="v-game" class="view is-hidden">
   <div id="players"></div>
+  <button id="potPill" class="glass" type="button" data-act="tile" data-i="20" aria-label="Pott – Details zum Nebel-Rastplatz"><span class="pot-ic"><svg viewBox="0 0 40 40" aria-hidden="true"><path style="fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round" d="M20 20a3 3 0 1 1 6 0a7 7 0 1 1-14 0a11 11 0 1 1 22 0a15 15 0 1 1-30 0"/></svg></span><span class="pot-tx"><span class="pot-lbl">Pott</span><span class="pot-val">0 Cr</span></span></button>
   <div id="dock" class="glass"><div id="dockInner"></div></div>
   <button id="ticker" class="glass" type="button" data-act="log"><div class="lbl">Logbuch</div><div id="tickerText"></div></button>
 </section>
@@ -473,6 +490,11 @@ const CARDS = {
     {x:'Glücksrad der Handelsgilde! Dreh und hoffe auf den Jackpot.', f:(S,id)=>cardGuildWheel(S,id)},
     {x:'Treibstoffpreise explodieren! Zahle 10 % deiner Credits.', f:(S,id)=>cardFuel(S,id)},
     {x:'Schwarzmarkt-Glücksrad: Dreh noch einmal, die Gilde schaut weg.', f:(S,id)=>cardGuildWheel(S,id)},
+    {x:'Ein Asteroidenrennen startet: Doppelt oder nichts? Setz Credits – oder bleib am Rand.', f:(S,id)=>cardBet(S,id,'double')},
+    {x:'Piratenhinterhalt! Das Glücksrad entscheidet, wie viel Prozent deiner Credits sie erbeuten.', f:(S,id)=>cardPirates(S,id)},
+    {x:'Geheimer Tipp eines Informanten: Fliege zur nächsten freien Welt.', f:(S,id)=>cardTip(S,id)},
+    {x:'Hyperraum-Lotto: Dreh am Rad und gewinne einen Teil des Potts – oder den ganzen!', f:(S,id)=>cardLotto(S,id)},
+    {x:'Kopfgeldjäger auf deiner Spur: Zahle 50 Cr an den Piloten mit den wenigsten Credits, damit er schweigt.', f:(S,id)=>cardHush(S,id)},
   ],
   funk: [
     {x:'Rechenfehler der Galaktischen Bank zu deinen Gunsten. Kassiere 200 Cr.', f:(S,id)=>credit(S,id,200)},
@@ -492,6 +514,13 @@ const CARDS = {
     {x:'Asteroidensturm über deinen Welten! Zahle 5 % ihres Kaufwerts für Reparaturen.', f:(S,id)=>cardStorm(S,id)},
     {x:'Steuerprüfung der Handelsgilde: Der reichste Pilot zahlt 10 % seiner Credits an den ärmsten.', f:(S)=>cardAudit(S)},
     {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deiner aktuellen Credits du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
+    {x:'Lotterie der Raumstation: Dein Los gewinnt. Kassiere 75 Cr.', f:(S,id)=>credit(S,id,75)},
+    {x:'Du hast einen Piraten gestellt. Die Gilde zahlt dir 150 Cr Kopfgeld.', f:(S,id)=>credit(S,id,150)},
+    {x:'Die Andockklammer klemmt. Zahle 40 Cr für den Techniker.', f:(S,id)=>charge(S,id,40,null)},
+    {x:'Erbschaftsstreit! Das Glücksrad entscheidet, wie viel vom Erbe bei dir landet.', f:(S,id)=>cardInherit(S,id)},
+    {x:'Spendenaufruf der Kolonien: Jeder Pilot zahlt 25 Cr in den Pott.', f:(S)=>cardDonation(S)},
+    {x:'Hyperraum-Abkürzung entdeckt: Fliege 5 Felder vor.', f:(S,id)=>moveBy(S,id,5)},
+    {x:'Ein Händler sucht Investoren. Setz Credits aufs Glücksrad – zwischen 0× und 2× ist alles drin.', f:(S,id)=>cardBet(S,id,'invest')},
   ]
 };
 const round5 = n => Math.round(n/5)*5;
@@ -522,7 +551,31 @@ function cardAudit(S){
   if (rich===poor || !a || S.players[rich].money===S.players[poor].money) return;
   charge(S,rich,a,poor); log(S,`Steuerprüfung: ${nm(S,rich)} zahlt ${a} Cr an ${nm(S,poor)}.`);
 }
-function cardBet(S,id){ S.phase='bet'; log(S,`${nm(S,id)} darf eine Schmugglerwette eingehen.`); }
+function cardBet(S,id,kind='smuggle'){ S.phase='bet'; S.betKind=kind; log(S,`${nm(S,id)} darf ${(BET_KINDS[kind]||BET_KINDS.smuggle).intro}.`); }
+const WHEEL_DOUBLE=[0,1,2,3,4,5,6,7].map(k=>k%2?{l:'0×',v:0,c:'bad'}:{l:'2×',v:2,c:'good'});
+const WHEEL_INVEST=[{l:'½×',v:.5,c:'bad'},{l:'1×',v:1,c:'zero'},{l:'1,5×',v:1.5,c:'good'},{l:'2×',v:2,c:'jackpot'},{l:'0×',v:0,c:'bad'},{l:'1×',v:1,c:'zero'},{l:'1,5×',v:1.5,c:'good'},{l:'½×',v:.5,c:'bad'}];
+const WHEEL_PIRATES=[{l:'Glück',v:0,c:'zero'},{l:'5 %',v:5,c:'bad'},{l:'10 %',v:10,c:'bad'},{l:'20 %',v:20,c:'bad'},{l:'Glück',v:0,c:'zero'},{l:'15 %',v:15,c:'bad'},{l:'25 %',v:25,c:'bad'},{l:'5 %',v:5,c:'bad'}];
+const WHEEL_INHERIT=[{l:'0',v:0,c:'zero'},{l:'+50',v:50,c:'good'},{l:'+100',v:100,c:'good'},{l:'+300',v:300,c:'jackpot'},{l:'+25',v:25,c:'good'},{l:'+150',v:150,c:'good'},{l:'+75',v:75,c:'good'},{l:'+200',v:200,c:'good'}];
+const WHEEL_LOTTO=[{l:'½ Pott',v:.5,c:'good'},{l:'Nichts',v:0,c:'zero'},{l:'¼ Pott',v:.25,c:'good'},{l:'Nichts',v:0,c:'zero'},{l:'Alles!',v:1,c:'jackpot'},{l:'Nichts',v:0,c:'zero'},{l:'¼ Pott',v:.25,c:'good'},{l:'Nichts',v:0,c:'zero'}];
+const BET_KINDS={
+  smuggle:{title:'Schmugglerwette',intro:'eine Schmugglerwette eingehen',wheel:WHEEL_BET,stakes:[50,100,250],desc:'Schmugglerwette: Setz Credits aufs Glücksrad – von 0× bis 3× ist alles drin.'},
+  double:{title:'Doppelt oder nichts',intro:'beim Asteroidenrennen auf Doppelt oder nichts setzen',wheel:WHEEL_DOUBLE,stakes:[50,100,250],desc:'Doppelt oder nichts: Das Rad entscheidet – Einsatz verdoppelt oder weg.'},
+  invest:{title:'Investition',intro:'in einen Händler investieren',wheel:WHEEL_INVEST,stakes:[100,200,400],desc:'Investition: Zwischen 0× und 2× deines Einsatzes kommt zurück.'},
+};
+function cardPirates(S,id){
+  const x=spin(S,id,'Piratenhinterhalt',WHEEL_PIRATES), amt=round5(Math.max(0,S.players[id].money)*x.v/100);
+  if (!amt){ log(S,`${nm(S,id)} entkommt den Piraten.`); return; }
+  charge(S,id,amt,null); log(S,`Piraten erbeuten ${x.v} % – ${nm(S,id)} verliert ${amt} Cr an den Pott.`);
+}
+function cardInherit(S,id){ const x=spin(S,id,'Erbschaftsstreit',WHEEL_INHERIT); if (x.v>0){ credit(S,id,x.v); log(S,`${nm(S,id)} erbt ${x.v} Cr.`); } else log(S,`${nm(S,id)} geht beim Erbe leer aus.`); }
+function cardTip(S,id){ const p=S.players[id]; for (let k=1;k<40;k++){ const j=(p.pos+k)%40; if (BUYABLE(j) && !S.props[j].owner){ log(S,`${p.name} folgt dem Tipp zu ${SPACES[j].name}.`); moveTo(S,id,j); return; } } log(S,'Alle Welten sind vergeben – der Tipp ist wertlos.'); }
+function cardLotto(S,id){
+  const x=spin(S,id,'Hyperraum-Lotto',WHEEL_LOTTO), a=Math.floor((S.pot||0)*x.v/5)*5;
+  if (a>0){ S.pot-=a; S.players[id].money+=a; emit(S,{t:'jackpot',id,amt:a,part:x.v<1}); log(S,`${nm(S,id)} gewinnt ${a} Cr aus dem Pott.`); }
+  else log(S, x.v>0 ? 'Der Pott ist leer – nichts zu gewinnen.' : `${nm(S,id)} geht beim Lotto leer aus.`);
+}
+function cardDonation(S){ for (const o of S.order){ if (S.players[o].out) continue; const a=Math.min(25,Math.max(0,S.players[o].money)); if (a) charge(S,o,a,null); } log(S,'Alle Piloten spenden 25 Cr in den Pott.'); }
+function cardHush(S,id){ const others=S.order.filter(o=>o!==id && !S.players[o].out).sort((a,b)=>S.players[a].money-S.players[b].money); if (!others.length) return; charge(S,id,50,others[0]); log(S,`${nm(S,id)} zahlt ${nm(S,others[0])} 50 Cr Schweigegeld.`); }
 const DECK_NAME = {funk:'Holo-Funk', schmuggel:'Schmugglerfunk'};
 
 /* ============================================================ engine
@@ -635,14 +688,15 @@ function actBet(S,stake){
   if (S.phase!=='bet') return false;
   const id=curId(S), p=S.players[id];
   if (stake>0){
-    if (!BET_STAKES.includes(stake) || p.money<stake) return false;
+    const B=BET_KINDS[S.betKind]||BET_KINDS.smuggle;
+    if (!B.stakes.includes(stake) || p.money<stake) return false;
     charge(S,id,stake,null);
-    const x=spin(S,id,`Schmugglerwette · Einsatz ${stake} Cr`,WHEEL_BET), win=Math.round(stake*x.v);
+    const x=spin(S,id,`${B.title} · Einsatz ${stake} Cr`,B.wheel), win=Math.round(stake*x.v);
     if (win>0) credit(S,id,win);
     const back=Math.min(win,stake); if (back>0){ S.pot=Math.max(0,(S.pot||0)-back); emit(S,{t:'potAdj',d:-back}); }
     log(S, win>stake ? `${p.name} gewinnt die Wette (${x.l}) und bekommt ${win} Cr!` : win===stake ? `${p.name} bekommt den Einsatz zurück.` : win>0 ? `${p.name} rettet ${win} von ${stake} Cr.` : `${p.name} verliert den Einsatz von ${stake} Cr.`);
   } else log(S,`${p.name} lässt die Finger von der Wette.`);
-  S.phase='x'; settle(S);
+  S.betKind=null; S.phase='x'; settle(S);
 }
 function actPass(S){
   if (S.phase!=='buy') return false;
@@ -774,57 +828,81 @@ const actorId = () => mode==='local' ? (state ? curId(state) : null) : myId;
 
 /* ============================================================ sound (synthesized, no files) */
 const sfx = {
-  ctx:null, master:null, on: store.get('sb-sound') !== false, noiseBuf:null, vol: store.get('sb-vol') ?? 70,
-  setVol(v){ this.vol=v; store.set('sb-vol',v); if (this.master) this.master.gain.setTargetAtTime(v/100*0.8,this.ctx.currentTime,0.03); },
+  ctx:null, master:null, wet:null, amb:null, bufs:{}, on: store.get('sb-sound') !== false, vol: store.get('sb-vol') ?? 70,
+  setVol(v){ this.vol=v; store.set('sb-vol',v); if (this.master) this.master.gain.setTargetAtTime(v/100*0.9,this.ctx.currentTime,0.03); this.applyMute(); },
+  applyMute(){ if (this.amb && this.ctx) this.amb.gain.setTargetAtTime(this.on && this.vol>0 ? .025 : 0, this.ctx.currentTime, .4); },
   init(){
     if (this.ctx){ if (this.ctx.state==='suspended') this.ctx.resume(); return; }
     const C=window.AudioContext||window.webkitAudioContext; if (!C) return;
     try {
-      this.ctx=new C(); const comp=this.ctx.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=4;
-      this.master=this.ctx.createGain(); this.master.gain.value=this.vol/100*0.8; this.master.connect(comp); comp.connect(this.ctx.destination);
-      const len=this.ctx.sampleRate*2, b=this.ctx.createBuffer(1,len,this.ctx.sampleRate), d=b.getChannelData(0);
-      for (let i=0;i<len;i++) d[i]=Math.random()*2-1; this.noiseBuf=b;
+      const c=this.ctx=new C();
+      const comp=c.createDynamicsCompressor(); comp.threshold.value=-16; comp.knee.value=12; comp.ratio.value=3.5; comp.attack.value=.004; comp.release.value=.25;
+      this.master=c.createGain(); this.master.gain.value=this.vol/100*0.9; this.master.connect(comp); comp.connect(c.destination);
+      /* reverb: a generated impulse response of a large, dark hall */
+      const ir=c.createBuffer(2,Math.floor(c.sampleRate*3),c.sampleRate);
+      for (let ch=0;ch<2;ch++){ const d=ir.getChannelData(ch), fade=c.sampleRate*.012; let lp=0; for (let i=0;i<d.length;i++){ lp=lp*.6+(Math.random()*2-1)*.4; d[i]=lp*Math.pow(1-i/d.length,3.2)*(i<fade?i/fade:1); } }
+      const conv=c.createConvolver(); conv.buffer=ir; this.wet=c.createGain(); this.wet.gain.value=.6; this.wet.connect(conv); conv.connect(this.master);
+      const len=c.sampleRate*2, white=c.createBuffer(1,len,c.sampleRate), brown=c.createBuffer(1,len,c.sampleRate), w=white.getChannelData(0), b=brown.getChannelData(0); let last=0;
+      for (let i=0;i<len;i++){ w[i]=Math.random()*2-1; last=(last+.02*w[i])/1.02; b[i]=last*3.5; }
+      this.bufs={white,brown};
+      this.startAmbience();
     } catch(e){ this.ctx=null; }
   },
-  tone(freq,dur,o={}){
-    const c=this.ctx, t=c.currentTime+(o.delay||0), osc=c.createOscillator(), g=c.createGain();
-    osc.type=o.type||'sine'; osc.frequency.setValueAtTime(freq,t); if (o.slide) osc.frequency.exponentialRampToValueAtTime(o.slide,t+dur);
-    const v=o.gain??0.15, a=o.attack??0.008;
-    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(v,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    osc.connect(g); g.connect(this.master); osc.start(t); osc.stop(t+dur+0.05);
+  /* building blocks */
+  out(node,{pan=0,rev=.25}={}){ const c=this.ctx; let n=node; if (pan && c.createStereoPanner){ const p=c.createStereoPanner(); p.pan.value=clamp(pan,-1,1); n.connect(p); n=p; } n.connect(this.master); if (rev>0){ const s=c.createGain(); s.gain.value=rev; n.connect(s); s.connect(this.wet); } },
+  osc(type,f,t,dur,peak,{a=.005,to,toT,filter,q=1,pan=0,rev=.2,detune=0}={}){
+    const c=this.ctx, o=c.createOscillator(), g=c.createGain(); o.type=type; o.frequency.setValueAtTime(f,t); o.detune.value=detune;
+    if (to) o.frequency.exponentialRampToValueAtTime(to,t+(toT||dur));
+    let n=o; if (filter){ const fl=c.createBiquadFilter(); fl.type=filter.type||'lowpass'; fl.frequency.setValueAtTime(filter.f,t); if (filter.to) fl.frequency.exponentialRampToValueAtTime(filter.to,t+(filter.toT||dur)); fl.Q.value=q; o.connect(fl); n=fl; }
+    n.connect(g); g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(Math.max(.0002,peak),t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+a+dur);
+    this.out(g,{pan,rev}); o.start(t); o.stop(t+a+dur+.05);
   },
-  noise(dur,o={}){
-    const c=this.ctx, t=c.currentTime+(o.delay||0), src=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain();
-    src.buffer=this.noiseBuf; f.type=o.filter||'bandpass'; f.Q.value=o.q??1; f.frequency.setValueAtTime(o.freq||1000,t); if (o.to) f.frequency.exponentialRampToValueAtTime(o.to,t+dur);
-    const v=o.gain??0.15, a=o.attack??0.005;
-    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(v,t+a); g.gain.setValueAtTime(v,t+Math.max(a,dur*(o.hold??0.2))); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
-    src.connect(f); f.connect(g); g.connect(this.master); src.start(t,Math.random()); src.stop(t+dur+0.05);
+  noise(t,dur,peak,{type='bandpass',f=1000,to,toT,q=1,a=.003,buf='white',pan=0,rev=.2,hold=0}={}){
+    const c=this.ctx, s=c.createBufferSource(), fl=c.createBiquadFilter(), g=c.createGain(); s.buffer=this.bufs[buf]; s.loop=true;
+    fl.type=type; fl.frequency.setValueAtTime(f,t); if (to) fl.frequency.exponentialRampToValueAtTime(to,t+(toT||dur)); fl.Q.value=q;
+    s.connect(fl); fl.connect(g);
+    g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(Math.max(.0002,peak),t+a); if (hold) g.gain.setValueAtTime(Math.max(.0002,peak),t+a+hold); g.gain.exponentialRampToValueAtTime(0.0001,t+a+hold+dur);
+    this.out(g,{pan,rev}); s.start(t,Math.random()*1.5); s.stop(t+a+hold+dur+.05);
+  },
+  bell(f,t,peak,dec=1.2,{pan=0,rev=.45}={}){ [[1,1],[2.76,.42],[5.4,.2],[8.93,.08]].forEach(([r,a],k)=>this.osc('sine',f*r,t,dec/(1+k*1.3),peak*a,{a:.002,pan,rev})); },
+  thump(t,peak,f=90,to=35,dur=.5,rev=.2){ this.osc('sine',f,t,dur,peak,{a:.004,to,rev}); },
+  click(t,peak,f=3500,pan=0){ this.noise(t,.02,peak,{type:'bandpass',f,q:3,a:.0008,pan,rev:.08}); },
+  startAmbience(){
+    const c=this.ctx, g=c.createGain(); g.gain.value=0;
+    const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=320; lp.Q.value=.7;
+    const lfo=c.createOscillator(), lg=c.createGain(); lfo.frequency.value=.05; lg.gain.value=140; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
+    [55,82.41,110.3].forEach((f,k)=>{ const o=c.createOscillator(); o.type=k===2?'triangle':'sine'; o.frequency.value=f; o.detune.value=(k-1)*6; const og=c.createGain(); og.gain.value=k===2?.15:.35; o.connect(og); og.connect(lp); o.start(); });
+    const n=c.createBufferSource(); n.buffer=this.bufs.brown; n.loop=true; const ng=c.createGain(); ng.gain.value=.25; n.connect(ng); ng.connect(lp); n.start();
+    lp.connect(g); g.connect(this.master); const s=c.createGain(); s.gain.value=.4; g.connect(s); s.connect(this.wet);
+    this.amb=g; this.applyMute();
   },
   play(name,arg){
     if (!this.on || !this.ctx || this.vol<=0) return;
-    try {
-      switch(name){
-        case 'tap': this.tone(1500,.05,{gain:.035}); break;
-        case 'lose': [392,330,262,196].forEach((f,k)=>this.tone(f,.7,{type:'triangle',gain:.08,delay:k*.24})); this.noise(2,{filter:'lowpass',freq:320,to:60,q:.5,gain:.16,delay:.3,hold:.4}); break;
-        case 'pop': this.noise(.3,{filter:'highpass',freq:1600,q:.5,gain:.1}); this.tone(1600+Math.random()*1400,.4,{gain:.025,slide:700}); break;
-        case 'rumble': this.noise(3,{filter:'lowpass',freq:190,to:55,q:.4,gain:.16,attack:.6,hold:.5}); this.tone(41,3,{gain:.06,attack:.6}); break;
-        case 'far': this.noise(1.3,{freq:420,to:2600,q:.6,gain:.06,attack:.2,hold:.4}); break;
-        case 'nova': this.noise(2.6,{filter:'lowpass',freq:1300,to:70,q:.4,gain:.12,attack:.02,hold:.1}); break;
-        case 'tick': this.tone(2400,.022,{type:'square',gain:.018}); this.noise(.02,{freq:4000,q:2,gain:.04}); break;
-        case 'dice': for (let k=0;k<7;k++) this.noise(.05,{freq:2200+Math.random()*2200,q:4,gain:.28-k*.03,delay:k*.1+Math.random()*.04}); break;
-        case 'fly': { const d=arg||1; this.noise(d,{freq:300,to:1400,q:.7,gain:.09,attack:.15,hold:.6}); this.tone(70,d,{type:'triangle',slide:110,gain:.06,attack:.15}); break; }
-        case 'warp': this.noise(1.5,{freq:180,to:5000,q:.6,gain:.22,attack:.3,hold:.5}); this.tone(55,1.5,{type:'sawtooth',slide:30,gain:.05,attack:.2}); this.tone(880,.9,{slide:3520,gain:.03,delay:.45}); break;
-        case 'coin': this.tone(1568,.12,{type:'triangle',gain:.07}); this.tone(2093,.22,{type:'triangle',gain:.06,delay:.06}); break;
-        case 'pay': this.tone(620,.28,{type:'triangle',slide:300,gain:.09}); this.noise(.3,{freq:3000,to:600,q:2,gain:.05}); break;
-        case 'buy': this.tone(659,.3,{gain:.1}); this.tone(988,.4,{gain:.09,delay:.09}); this.tone(1319,.6,{gain:.07,delay:.18}); break;
-        case 'build': this.tone(392,.14,{type:'triangle',gain:.1}); this.tone(587,.26,{type:'triangle',gain:.09,delay:.08}); this.noise(.2,{freq:800,q:3,gain:.06}); break;
-        case 'card': [784,988,1175,1568].forEach((f,k)=>this.tone(f,.5,{gain:.05,delay:k*.06})); this.noise(.6,{freq:6000,q:.5,gain:.03,attack:.1}); break;
-        case 'turn': this.tone(880,.18,{gain:.08}); this.tone(1175,.4,{gain:.07,delay:.11}); break;
-        case 'error': this.tone(196,.18,{type:'square',gain:.025}); break;
-        case 'boom': this.noise(1.2,{filter:'lowpass',freq:900,to:80,q:.5,gain:.35}); this.tone(90,1,{slide:35,gain:.15}); break;
-        case 'win': [523,659,784,1047,1319].forEach((f,k)=>this.tone(f,.7,{gain:.07,delay:k*.12})); break;
-      }
-    } catch(e){}
+    const fn=this.S[name]; if (!fn) return;
+    try { fn.call(this,this.ctx.currentTime+.01,arg); } catch(e){}
+  },
+  S:{
+    tap(t){ this.click(t,.05,4200); this.osc('sine',2400,t,.03,.012,{a:.001,rev:0}); },
+    tick(t){ const p=(Math.random()-.5)*.3; this.click(t,.09,3000+Math.random()*800,p); this.osc('triangle',1700+Math.random()*200,t,.035,.025,{a:.001,rev:.05,pan:p}); },
+    dice(t){ let tt=t, amp=.32; [0,.06,.05,.09,.07,.12,.1,.16,.13,.2].forEach(gp=>{ tt+=gp+Math.random()*.03; const p=(Math.random()-.5)*.6; this.noise(tt,.03,amp,{type:'bandpass',f:1800+Math.random()*2200,q:5,a:.001,pan:p,rev:.12}); this.osc('sine',700+Math.random()*900,tt,.05,amp*.35,{a:.001,pan:p,rev:.1}); this.osc('sine',170+Math.random()*60,tt,.07,amp*.3,{a:.001,rev:0}); amp*=.82; }); },
+    fly(t,dur=1){ dur=Math.max(.6,dur); this.noise(t,dur*.75,.16,{type:'lowpass',f:220,to:520,toT:dur*.5,q:.7,a:dur*.3,buf:'brown',rev:.15}); this.noise(t,dur*.7,.05,{type:'bandpass',f:500,to:2400,toT:dur*.6,q:1.2,a:dur*.35,rev:.25}); this.osc('sawtooth',62,t,dur*.75,.05,{a:dur*.3,to:84,toT:dur*.55,filter:{type:'lowpass',f:260,to:480,toT:dur*.5},q:2,rev:.1}); this.osc('sine',520,t,dur*.75,.01,{a:dur*.3,to:760,rev:.2}); },
+    warp(t){ this.noise(t,1.3,.22,{type:'bandpass',f:180,to:5200,toT:1.3,q:2.5,a:.35,rev:.4}); this.osc('sawtooth',70,t,1.0,.06,{a:.3,to:1100,toT:1.2,filter:{type:'lowpass',f:300,to:4000,toT:1.2},q:4,rev:.35}); this.thump(t+1.25,.35,110,30,.9,.4); this.noise(t+1.25,1.2,.12,{type:'lowpass',f:1600,to:120,q:.5,a:.005,rev:.5}); },
+    coin(t){ const p=(Math.random()-.5)*.4; this.bell(2637+Math.random()*60,t,.12,.45,{pan:p,rev:.25}); this.bell(3520+Math.random()*60,t+.075,.1,.4,{pan:-p,rev:.25}); this.click(t,.08,6000,p); },
+    pay(t){ this.noise(t,.35,.08,{type:'bandpass',f:2400,to:600,q:1.5,a:.01,rev:.2}); this.bell(1760,t+.18,.04,.5,{rev:.3}); this.thump(t+.18,.12,140,70,.18,.1); },
+    buy(t){ [1047,1319,1568,2093].forEach((f,k)=>this.bell(f,t+k*.07,.05,1.4,{rev:.55})); this.thump(t,.22,110,55,.25,.15); this.noise(t,.08,.06,{type:'bandpass',f:900,q:1,a:.002,rev:.1}); },
+    build(t){ this.thump(t,.3,140,50,.22,.12); this.noise(t,.12,.12,{type:'bandpass',f:1300,q:6,a:.002,rev:.15}); this.osc('sawtooth',180,t+.06,.35,.03,{a:.03,to:420,filter:{type:'lowpass',f:900},rev:.15}); this.bell(880,t+.3,.035,.8,{rev:.4}); },
+    card(t){ [784,988,1175,1568,1976].forEach((f,k)=>this.osc('sine',f,t+k*.055,.9,.025,{a:.01,rev:.6,detune:(Math.random()-.5)*12})); this.noise(t,.9,.035,{type:'highpass',f:5000,a:.15,rev:.5}); },
+    turn(t){ this.bell(1319,t,.07,1.1,{rev:.5}); this.bell(1760,t+.12,.06,1.3,{rev:.5}); },
+    error(t){ this.osc('sine',220,t,.16,.1,{a:.004,to:150,rev:.05}); this.osc('triangle',110,t,.16,.03,{a:.004,rev:0}); },
+    boom(t){ this.thump(t,.6,75,26,1.6,.35); this.noise(t,2.4,.45,{type:'lowpass',f:2400,to:90,toT:2.2,q:.4,a:.01,buf:'brown',rev:.6}); this.noise(t,.5,.25,{type:'bandpass',f:900,to:300,q:.7,a:.002,rev:.4}); for (let k=0;k<14;k++) this.click(t+.1+Math.random()*1.1,.05+Math.random()*.06,1200+Math.random()*3000,(Math.random()-.5)*.8); },
+    pop(t){ const p=(Math.random()-.5)*.8; this.thump(t,.18,160,60,.25,.25); this.noise(t,.25,.16,{type:'highpass',f:1400,a:.002,pan:p,rev:.4}); for (let k=0;k<10;k++) this.click(t+.15+Math.random()*.6,.03+Math.random()*.03,3000+Math.random()*4000,clamp(p+(Math.random()-.5)*.4,-1,1)); },
+    rumble(t){ this.noise(t,2.6,.3,{type:'lowpass',f:160,to:60,q:.6,a:.8,hold:.6,buf:'brown',rev:.4}); this.osc('sine',38,t,3.2,.12,{a:.8,rev:.1}); },
+    far(t){ const p=(Math.random()-.5)*1.2; this.noise(t,1.4,.07,{type:'bandpass',f:300,to:1800,toT:.9,q:1.4,a:.5,pan:p,rev:.7}); this.osc('sawtooth',90,t,1.4,.015,{a:.5,to:60,filter:{type:'lowpass',f:400},rev:.6,pan:p}); },
+    nova(t){ this.thump(t,.3,60,24,2.2,.7); this.noise(t,3,.2,{type:'lowpass',f:1200,to:60,toT:2.8,q:.3,a:.03,buf:'brown',rev:.8}); },
+    form(t){ [261.6,329.6,392,523.3].forEach((f,k)=>{ this.osc('sine',f,t+k*.25,2.2,.025,{a:.6,rev:.7,detune:-6}); this.osc('sine',f*2,t+k*.25,2,.01,{a:.6,rev:.7,detune:7}); }); this.noise(t,2.6,.03,{type:'bandpass',f:3000,to:7000,q:.8,a:1,rev:.7}); },
+    pew(t){ const p=(Math.random()-.5)*1.4; this.osc('sawtooth',1900+Math.random()*600,t,.14,.012,{a:.002,to:320,filter:{type:'bandpass',f:1600},q:2,pan:p,rev:.5}); },
+    win(t){ [[523.3,659.3,784],[587.3,740,880],[659.3,830.6,987.8],[784,987.8,1174.7,1568]].forEach((ch,k)=>{ const tt=t+k*.32, dur=k===3?2.2:.45; ch.forEach(f=>{ this.osc('sawtooth',f,tt,dur,.022,{a:.03,filter:{type:'lowpass',f:900,to:3200,toT:.12},q:1.5,rev:.5,detune:(Math.random()-.5)*10}); this.osc('sawtooth',f/2,tt,dur,.012,{a:.03,filter:{type:'lowpass',f:700},rev:.4}); }); }); [2093,2637,3136].forEach((f,k)=>this.bell(f,t+1+k*.1,.03,1.5,{rev:.6})); this.thump(t+.96,.25,110,50,.6,.3); },
+    lose(t){ [[392,466.2,587.3],[349.2,415.3,523.3],[311.1,370,466.2],[293.7,349.2,440]].forEach((ch,k)=>{ const tt=t+k*.42, dur=k===3?2:.5; ch.forEach(f=>this.osc('sawtooth',f/2,tt,dur,.02,{a:.06,filter:{type:'lowpass',f:700,to:300},q:1,rev:.55,detune:(Math.random()-.5)*14})); }); this.noise(t+.3,2.4,.12,{type:'lowpass',f:300,to:60,q:.5,a:.4,buf:'brown',rev:.5}); },
   }
 };
 document.addEventListener('pointerdown',()=>sfx.init(),{passive:true});
@@ -1410,7 +1488,7 @@ function evBlackHole(){
   const disk=new THREE.Mesh(new THREE.RingGeometry(3.4,12,128,6),mat); disk.rotation.x=1.15; g.add(disk);
   g.add(new THREE.Mesh(new THREE.RingGeometry(3,3.5,96),new THREE.MeshBasicMaterial({color:new THREE.Color('#ffd9a8').multiplyScalar(1.8),side:THREE.DoubleSide,...ADD})));
   addSprite(softTex,'#ff7a2e',38,.3,g);
-  g.scale.setScalar(.001); scene.add(g); flashAt(g.position,'#ffffff',46,900); sfx.play('rumble');
+  g.scale.setScalar(.001); scene.add(g); flashAt(g.position,'#ffffff',46,900); lightFlash(g.position,'#ffb070',.7); sfx.play('rumble');
   const T=11, pos=g.position.clone();
   return { t:0, upd(dt){ this.t+=dt; const t=this.t; mat.uniforms.uTime.value+=dt;
       let s = t<1.4 ? outBack(t/1.4) : t<T-1.4 ? 1+Math.sin(t*.9)*.02 : 1-EASE.inCubic((t-(T-1.4))/1.4);
@@ -1432,7 +1510,7 @@ function evCarrier(){
   const mid=skySpot(120,.35,.7,.35), dir=camAxis(Math.random()<.5?1:-1,0,0); dir.y+=(Math.random()-.5)*.15; dir.normalize();
   const g=makeCarrier(), start=mid.clone().addScaledVector(dir,-16);
   g.position.copy(start); g.lookAt(start.clone().add(dir)); scene.add(g);
-  flashAt(start,'#cfe9ff',30,800); sfx.play('far');
+  flashAt(start,'#cfe9ff',30,800); lightFlash(start,'#cfe9ff',.45); sfx.play('far');
   const T=10;
   return { t:0, upd(dt){ this.t+=dt; const t=this.t;
       for (const l of g.userData.lights) l.material.opacity=.45+.55*(Math.sin(t*4+l.userData.ph)>.6?1:.35);
@@ -1461,16 +1539,31 @@ function evFleet(colorOverride){
 }
 function evNova(){
   const p=skySpot(190,.35,.85,.8), col=new THREE.Color(Math.random()<.5?'#bfe3ff':'#ffd2a0'), orange=new THREE.Color('#ff7a3a');
-  const core=addSprite(glowTex,'#ffffff',2,1), ring=addSprite(ringTex,col.getStyle(),10,.8), ring2=addSprite(ringTex,'#ff9a5a',6,.5), halo=addSprite(softTex,col.getStyle(),30,0);
-  [core,ring,ring2,halo].forEach(s=>s.position.copy(p));
-  setTimeout(()=>sfx.play('nova'),350);
-  const T=4.8;
-  return { t:0, upd(dt){ this.t+=dt; const t=this.t;
-      const cs=t<.25?2+t/.25*48:50*(1+(t-.25)*.08); core.scale.set(cs,cs,1); core.material.opacity=t<.25?1:Math.max(0,1-(t-.25)/3.8); core.material.color.copy(col).lerp(orange,Math.min(1,t/3));
-      const r1=10+t*38; ring.scale.set(r1,r1,1); ring.material.opacity=.8*(1-t/T);
-      const r2=6+t*22; ring2.scale.set(r2,r2,1); ring2.material.opacity=.5*(1-t/T);
-      halo.material.opacity=Math.min(.35,t*1.4)*(1-t/T); const hs=40+t*20; halo.scale.set(hs,hs,1);
-      return t>=T; }, dispose(){ [core,ring,ring2,halo].forEach(disposeObj); } };
+  const star=addSprite(glowTex,'#ffffff',3,1); star.position.copy(p);
+  const parts=[star], neb=[], nebCols=['#ff4f8b','#4fd8ff','#ffb04a','#9a6bff','#ff6a3a','#4fe0a0'];
+  for (let k=0;k<9;k++){ const s=addSprite(softTex,nebCols[k%nebCols.length],10,0); s.position.copy(p).addScaledVector(rndDir(),4+Math.random()*9); s.material.rotation=Math.random()*6; s.userData={g:4+Math.random()*7,o:.16+Math.random()*.16,rs:(Math.random()-.5)*.15}; neb.push(s); }
+  let core,ring,ring2,streak,pulsar,boomed=false;
+  const T=13;
+  return { t:0, upd(dt){
+      this.t+=dt; const t=this.t;
+      if (t<1.3){ const k=t/1.3, s=3+k*7+Math.sin(t*28)*k*2.2; star.scale.set(s,s,1); }
+      else if (!boomed){
+        boomed=true; star.visible=false;
+        core=addSprite(glowTex,'#ffffff',2,1); ring=addSprite(ringTex,col.getStyle(),12,.85); ring2=addSprite(ringTex,'#ff9a5a',8,.55);
+        streak=addSprite(streakTex,col.getStyle(),1,1); streak.scale.set(160,6,1); pulsar=addSprite(glowTex,'#e6f6ff',2.5,0);
+        [core,ring,ring2,streak,pulsar].forEach(o=>{ o.position.copy(p); parts.push(o); });
+        lightFlash(p,col.getStyle(),1.7); setTimeout(()=>sfx.play('nova'),300);
+      }
+      if (boomed){
+        const e=t-1.3;
+        const cs=e<.25?2+e/.25*16:18*(1+(e-.25)*.05); core.scale.set(cs,cs,1); core.material.opacity=e<.25?1:Math.max(0,1-(e-.25)/2); core.material.color.copy(col).lerp(orange,Math.min(1,e/3));
+        const r1=12+e*42; ring.scale.set(r1,r1,1); ring.material.opacity=Math.max(0,.85*(1-e/5));
+        const r2=8+e*24; ring2.scale.set(r2,r2,1); ring2.material.opacity=Math.max(0,.55*(1-e/6));
+        streak.material.opacity=Math.max(0,1-e/1.6); streak.scale.set(160*(1+e*.5),6*(1-Math.min(.8,e/2)),1);
+        for (const s of neb){ const d=s.userData, sc=10+e*d.g*3; s.scale.set(sc,sc,1); s.material.opacity=Math.min(d.o,e*.15)*Math.max(0,1-(t-(T-3))/3); s.material.rotation+=dt*d.rs; }
+        pulsar.material.opacity=e>2.5?(Math.sin(t*22)>.4?1:.15)*Math.max(0,1-(t-(T-2))/2):0;
+      }
+      return t>=T; }, dispose(){ parts.forEach(o=>o&&disposeObj(o)); neb.forEach(disposeObj); } };
 }
 function evComet(){
   const head0=skySpot(130,.55,.9,.9), dir=camAxis(Math.random()<.5?1:-1,0,0).addScaledVector(camAxis(0,-1,0),.35).normalize();
@@ -1481,16 +1574,195 @@ function evComet(){
       tail.forEach((s,k)=>{ s.position.copy(hp).addScaledVector(dir,-(k+1)*.95); s.material.opacity=fade*.55*(1-k/tail.length); const sc=3.2*(1-k/tail.length)+.6; s.scale.set(sc,sc,1); });
       return t>=T; }, dispose(){ disposeObj(head); tail.forEach(disposeObj); } };
 }
-const AMBIENT_TYPES={blackhole:evBlackHole,carrier:evCarrier,fleet:evFleet,nova:evNova,comet:evComet};
+
+/* ---------- living background: distant worlds that explode and re-form, plus more sky events ---------- */
+const rndDir=()=>{ const u=Math.random()*2-1, a=Math.random()*Math.PI*2, s=Math.sqrt(1-u*u); return V3(s*Math.cos(a),u,s*Math.sin(a)); };
+const flashLight=new THREE.DirectionalLight(0xffffff,0); scene.add(flashLight); let skyFlash=0;
+function lightFlash(pos,color,amount){ flashLight.position.copy(pos).normalize().multiplyScalar(30); flashLight.color.set(color); skyFlash=Math.max(skyFlash,amount); }
+function onScreen(p){ camera.updateMatrixWorld(); const v=p.clone().project(camera); return v.z<1 && Math.abs(v.x)<.85 && v.y>-.35 && v.y<.92; }
+const streakTex=canvasTex(256,32,(g,W,H)=>{ const gr=g.createLinearGradient(0,0,W,0); gr.addColorStop(0,'rgba(255,255,255,0)'); gr.addColorStop(.5,'rgba(255,255,255,1)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,W,H); const v=g.createLinearGradient(0,0,0,H); v.addColorStop(0,'rgba(0,0,0,1)'); v.addColorStop(.5,'rgba(0,0,0,0)'); v.addColorStop(1,'rgba(0,0,0,1)'); g.globalCompositeOperation='destination-out'; g.fillStyle=v; g.fillRect(0,0,W,H); });
+const crackTex=canvasTex(512,256,(g,W,H)=>{ g.fillStyle='#000'; g.fillRect(0,0,W,H); g.strokeStyle='#fff'; g.shadowColor='#fff'; g.shadowBlur=10; for (let k=0;k<26;k++){ let x=Math.random()*W, y=Math.random()*H; g.lineWidth=1+Math.random()*3; g.beginPath(); g.moveTo(x,y); for (let s=0;s<14;s++){ x+=(Math.random()-.5)*60; y+=(Math.random()-.5)*40; g.lineTo(x,y); } g.stroke(); } });
+const spiralTex=canvasTex(256,256,(g,W,H)=>{ const c=128; for (let arm=0;arm<4;arm++) for (let i=0;i<240;i++){ const t=i/240, a=arm*Math.PI/2+t*Math.PI*3.4, r=t*118; g.fillStyle=`rgba(255,255,255,${(1-t)*.45+.06})`; g.beginPath(); g.arc(c+Math.cos(a)*r,c+Math.sin(a)*r,2+t*8,0,7); g.fill(); } const gr=g.createRadialGradient(c,c,0,c,c,44); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,W,H); });
+const ringBandTex=canvasTex(512,8,(g,W,H)=>{ for (let x=0;x<W;x++){ const a=(Math.sin(x*.09)*.5+.5)*(Math.sin(x*.023)*.4+.6)*.8*(x/W>.04?1:0)*(x/W<.97?1:0); g.fillStyle=`rgba(255,255,255,${a})`; g.fillRect(x,0,1,H); } });
+const PLANET_TYPES=['gas','rock','ice','lava','ocean'];
+const PLANET_GLOW={gas:'#ffcf9a',rock:'#d9b48a',ice:'#bfe8ff',lava:'#ff6a2a',ocean:'#7fc4ff'};
+function blobs(g,W,H,n,colorFn,rMin,rMax,blur){ g.save(); g.filter=`blur(${blur}px)`; for (let k=0;k<n;k++){ g.fillStyle=colorFn(k); g.beginPath(); g.ellipse(Math.random()*W,H*.08+Math.random()*H*.84,rMin+Math.random()*(rMax-rMin),(rMin+Math.random()*(rMax-rMin))*.6,Math.random()*3,0,7); g.fill(); } g.restore(); }
+function planetTextures(type){
+  const h=Math.random(); let glow=null;
+  const map=canvasTex(512,256,(g,W,H)=>{
+    if (type==='gas'){ const hue=[.06,.1,.55,.8,.95][Math.floor(Math.random()*5)]; for (let y=0;y<H;y++){ const t=y/H, b=Math.sin(t*(18+h*20)+Math.sin(t*7)*2)*.5+.5; g.fillStyle=new THREE.Color().setHSL(hue+b*.04,.45,.25+b*.35).getStyle(); g.fillRect(0,y,W,1); } for (let k=0;k<300;k++){ g.fillStyle=`rgba(255,255,255,${Math.random()*.06})`; g.fillRect(Math.random()*W,Math.random()*H,40+Math.random()*140,1+Math.random()*2); } g.fillStyle='rgba(255,240,220,.35)'; g.beginPath(); g.ellipse(W*Math.random(),H*(.3+Math.random()*.4),28,12,0,0,7); g.fill(); }
+    else if (type==='rock'){ g.fillStyle=new THREE.Color().setHSL(.06+h*.06,.22,.34).getStyle(); g.fillRect(0,0,W,H); blobs(g,W,H,60,()=>`rgba(${Math.random()<.5?'30,24,20':'210,190,160'},.22)`,10,60,6); for (let k=0;k<70;k++){ const x=Math.random()*W, y=Math.random()*H, r=2+Math.random()*12; g.fillStyle='rgba(0,0,0,.28)'; g.beginPath(); g.arc(x,y,r,0,7); g.fill(); g.strokeStyle='rgba(255,240,220,.25)'; g.lineWidth=1.2; g.beginPath(); g.arc(x-1,y-1,r,3.6,5.8); g.stroke(); } }
+    else if (type==='ice'){ g.fillStyle='#cfe6f3'; g.fillRect(0,0,W,H); blobs(g,W,H,50,()=>`rgba(${Math.random()<.5?'255,255,255':'120,170,210'},.35)`,10,70,8); g.strokeStyle='rgba(60,110,160,.45)'; for (let k=0;k<40;k++){ let x=Math.random()*W, y=Math.random()*H; g.lineWidth=.6+Math.random()*1.4; g.beginPath(); g.moveTo(x,y); for (let s=0;s<8;s++){ x+=(Math.random()-.5)*50; y+=(Math.random()-.5)*25; g.lineTo(x,y); } g.stroke(); } }
+    else if (type==='lava'){ g.fillStyle='#1d120e'; g.fillRect(0,0,W,H); blobs(g,W,H,60,()=>`rgba(${Math.random()<.5?'60,40,32':'10,6,5'},.5)`,10,60,5); }
+    else { const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'#e8f4ff'); gr.addColorStop(.12,'#1d5fa8'); gr.addColorStop(.5,'#0f3f7d'); gr.addColorStop(.88,'#1d5fa8'); gr.addColorStop(1,'#e8f4ff'); g.fillStyle=gr; g.fillRect(0,0,W,H); blobs(g,W,H,22,()=>Math.random()<.6?'rgba(60,140,70,.9)':'rgba(150,120,70,.9)',14,60,4); blobs(g,W,H,40,()=>'rgba(255,255,255,.4)',10,50,7); }
+  });
+  if (type==='lava') glow=canvasTex(512,256,(g,W,H)=>{ g.fillStyle='#000'; g.fillRect(0,0,W,H); g.strokeStyle='#ffb04a'; g.shadowColor='#ff6a1a'; g.shadowBlur=12; for (let k=0;k<34;k++){ let x=Math.random()*W, y=Math.random()*H; g.lineWidth=1+Math.random()*3; g.beginPath(); g.moveTo(x,y); for (let s=0;s<10;s++){ x+=(Math.random()-.5)*50; y+=(Math.random()-.5)*30; g.lineTo(x,y); } g.stroke(); } });
+  return {map,glow};
+}
+function makeWorld(type){
+  const R=4+Math.random()*4.5, {map,glow}=planetTextures(type), g=new THREE.Group();
+  const mat=new THREE.MeshStandardMaterial({map,roughness:type==='ice'?.5:.9,metalness:0,envMapIntensity:.2,emissive:new THREE.Color(type==='lava'?'#ff5a1a':'#000000'),emissiveMap:glow,emissiveIntensity:type==='lava'?1:0});
+  const mesh=new THREE.Mesh(new THREE.SphereGeometry(R,40,28),mat); mesh.rotation.z=(Math.random()-.5)*.6; g.add(mesh);
+  const atm=addSprite(softTex,PLANET_GLOW[type],R*2.9,.3,g);
+  let ring=null;
+  if (type==='gas' && Math.random()<.65){
+    const rg=new THREE.RingGeometry(R*1.4,R*2.3,96,1), pa=rg.attributes.position, uv=rg.attributes.uv, v=V3();
+    for (let k=0;k<pa.count;k++){ v.fromBufferAttribute(pa,k); uv.setXY(k,(v.length()-R*1.4)/(R*.9),.5); }
+    ring=new THREE.Mesh(rg,new THREE.MeshBasicMaterial({map:ringBandTex,color:new THREE.Color().setHSL(.08+Math.random()*.1,.3,.8),transparent:true,side:THREE.DoubleSide,depthWrite:false,opacity:.8}));
+    ring.rotation.x=-Math.PI/2+.3+Math.random()*.4; ring.rotation.y=Math.random(); g.add(ring);
+  }
+  g.userData={type,r:R,mesh,mat,atm,ring,spin:.03+Math.random()*.06,baseEmissive:type==='lava'?1:0};
+  return g;
+}
+const worlds=[];
+(function initWorlds(){
+  const n=6;
+  for (let k=0;k<n;k++){
+    const a=k/n*Math.PI*2+(Math.random()-.5)*.5, R=118+Math.random()*34, y=-(26+Math.random()*28);
+    const w={pos:V3(Math.cos(a)*R,y,Math.sin(a)*R),obj:null,busy:false,reformAt:null};
+    if (k%3!==2){ const g=makeWorld(PLANET_TYPES[(k+Math.floor(Math.random()*5))%5]); g.position.copy(w.pos); scene.add(g); w.obj=g; }
+    else w.reformAt=25+Math.random()*40;
+    worlds.push(w);
+  }
+})();
+function evPlanetBoom(target){
+  const cand=worlds.filter(w=>w.obj && !w.busy && onScreen(w.pos));
+  const w=target||cand[Math.floor(Math.random()*cand.length)];
+  if (!w || !w.obj) return null;
+  w.busy=true;
+  const g=w.obj, u=g.userData, P=w.pos.clone(), R=u.r, debCol=new THREE.Color(PLANET_GLOW[u.type]).multiplyScalar(.45);
+  u.mat.emissiveMap=crackTex; u.mat.emissive.set('#ff6a1a'); u.mat.emissiveIntensity=0; u.mat.needsUpdate=true;
+  sfx.play('rumble');
+  const debris=[], clouds=[]; let ring=null, shock=null, flash=null, streak=null, exploded=false;
+  const T=10;
+  function boom(){
+    disposeObj(g); w.obj=null; w.busy=false; w.reformAt=clockT+16+Math.random()*22;
+    sfx.play('boom'); lightFlash(P,'#ffb070',1.5); shake=Math.max(shake,.25);
+    flash=addSprite(glowTex,'#fff1d6',R*6,1); flash.position.copy(P);
+    streak=addSprite(streakTex,'#ffd9a8',1,1); streak.scale.set(R*32,R*1.3,1); streak.position.copy(P);
+    shock=addSprite(ringTex,'#ffb070',R*3,.8); shock.position.copy(P);
+    ring=new THREE.Mesh(new THREE.RingGeometry(R*1.1,R*1.32,96),new THREE.MeshBasicMaterial({color:new THREE.Color('#ffb070').multiplyScalar(1.1),side:THREE.DoubleSide,...ADD,opacity:.45}));
+    ring.position.copy(P); ring.rotation.set(Math.random()*Math.PI,Math.random()*Math.PI,0); scene.add(ring);
+    for (let k=0;k<48;k++){
+      const s=R*(.07+Math.random()*.17), m=new THREE.Mesh(new THREE.IcosahedronGeometry(1,0),new THREE.MeshStandardMaterial({color:debCol,roughness:.9,emissive:new THREE.Color('#ff6a1a'),emissiveIntensity:2.5}));
+      const d=rndDir(); m.scale.setScalar(s); m.position.copy(P).addScaledVector(d,R*.5);
+      m.userData={v:d.multiplyScalar(R*(1.1+Math.random()*2.3)),w:V3(Math.random()*3,Math.random()*3,0),s}; scene.add(m); debris.push(m);
+    }
+    const cols=['#ff7a3a','#ff3f6e','#ffc35a','#b06bff',PLANET_GLOW[u.type]];
+    for (let k=0;k<8;k++){ const c=addSprite(softTex,cols[k%cols.length],R*2,0); c.position.copy(P).addScaledVector(rndDir(),R*.7); c.material.rotation=Math.random()*6; c.userData={s0:R*2,g:R*(1.1+Math.random()*1.6),o:.32+Math.random()*.2,rs:(Math.random()-.5)*.3}; clouds.push(c); }
+  }
+  return { t:0, upd(dt){
+      this.t+=dt; const t=this.t;
+      if (!exploded){
+        const k=Math.min(1,t/1.9); u.mat.emissiveIntensity=k*k*3.4; u.mat.color.setRGB(1-k*.55,1-k*.78,1-k*.85); u.atm.material.color.set('#ff6a2a'); u.atm.material.opacity=.3+k*.5;
+        g.position.set(P.x+(Math.random()-.5)*k*.7,P.y+(Math.random()-.5)*k*.7,P.z+(Math.random()-.5)*k*.7);
+        if (t>=1.9){ exploded=true; boom(); }
+      } else {
+        const e=t-1.9;
+        for (const d of debris){ d.position.addScaledVector(d.userData.v,dt); d.userData.v.multiplyScalar(1-dt*.25); d.rotation.x+=d.userData.w.x*dt; d.rotation.y+=d.userData.w.y*dt; d.scale.setScalar(d.userData.s*Math.max(.001,1-e/7)); d.material.emissiveIntensity=Math.max(0,2.5-e*.8); }
+        const s1=1+e*9; ring.scale.set(s1,s1,s1); ring.material.opacity=Math.max(0,.45-e/6);
+        const s2=R*3+e*R*8; shock.scale.set(s2,s2,1); shock.material.opacity=Math.max(0,.8-e/2.6);
+        const s3=R*6*(1+e*1.5); flash.scale.set(s3,s3,1); flash.material.opacity=Math.max(0,1-e/1.2);
+        streak.material.opacity=Math.max(0,1-e/1.4);
+        for (const c of clouds){ const s=c.userData.s0+e*c.userData.g; c.scale.set(s,s,1); c.material.opacity=Math.min(c.userData.o,e*.6)*Math.max(0,1-e/(T-1.9)); c.material.rotation+=dt*c.userData.rs; }
+      }
+      return t>=T; },
+    dispose(){ if (!exploded){ disposeObj(g); w.obj=null; w.busy=false; } debris.forEach(disposeObj); clouds.forEach(disposeObj); [ring,shock,flash,streak].forEach(o=>o&&disposeObj(o)); } };
+}
+function evPlanetForm(target){
+  const empty=worlds.filter(w=>!w.obj && !w.busy);
+  const w=target||empty.find(x=>onScreen(x.pos))||empty[0];
+  if (!w) return null;
+  w.busy=true; w.reformAt=null;
+  const type=PLANET_TYPES[Math.floor(Math.random()*PLANET_TYPES.length)], col=PLANET_GLOW[type];
+  const g=makeWorld(type), u=g.userData, R=u.r; g.position.copy(w.pos); g.scale.setScalar(.001); scene.add(g);
+  const baseEm=u.mat.emissive.clone(); u.mat.emissive.set(col);
+  const N=rndDir(), A=V3(0,1,0).cross(N).normalize(), B=N.clone().cross(A).normalize();
+  const dust=[]; for (let k=0;k<52;k++){ const s=addSprite(k%3?softTex:glowTex,col,R*(.35+Math.random()*.6),0); s.userData={ang:Math.random()*Math.PI*2,rad:R*(3.2+Math.random()*3.4),sp:.6+Math.random()*.8,h:(Math.random()-.5)*R*.5}; dust.push(s); }
+  const core=addSprite(glowTex,col,R,0); core.position.copy(w.pos);
+  sfx.play('form');
+  const T=10;
+  return { t:0, upd(dt){
+      this.t+=dt; const t=this.t, shrink=Math.max(.12,1-t/7);
+      for (const s of dust){ const d=s.userData; d.ang+=dt*d.sp*(1+(1-shrink)*3); const r=d.rad*shrink; s.position.copy(w.pos).addScaledVector(A,Math.cos(d.ang)*r).addScaledVector(B,Math.sin(d.ang)*r).addScaledVector(N,d.h*shrink); s.material.opacity=Math.min(.3,t*.25)*Math.max(0,1-(t-6)/3); }
+      core.material.opacity=Math.min(1,t/3)*Math.max(0,1-(t-7)/2.5); const cs=R*(1+t*.5); core.scale.set(cs,cs,1);
+      if (t>3.5){ const e=Math.min(1,(t-3.5)/3); g.scale.setScalar(Math.max(.001,outBack(e))); u.mat.emissiveIntensity=Math.max(u.baseEmissive,2*(1-e)); if (e>=1){ u.mat.emissive.copy(baseEm); } }
+      if (t>=3.5 && !this.f){ this.f=1; flashAt(w.pos,col,R*4,900); lightFlash(w.pos,col,.55); }
+      return t>=T; },
+    dispose(){ dust.forEach(disposeObj); disposeObj(core); g.scale.setScalar(1); u.mat.emissive.copy(baseEm); u.mat.emissiveIntensity=u.baseEmissive; w.obj=g; w.busy=false; } };
+}
+function evWormhole(){
+  const P=skySpot(110,.4,.8,.6), g=new THREE.Group(); g.position.copy(P); g.lookAt(camera.position); scene.add(g);
+  const disc=new THREE.Mesh(new THREE.CircleGeometry(9,64),new THREE.MeshBasicMaterial({map:spiralTex,color:new THREE.Color('#8fb8ff').multiplyScalar(1.05),side:THREE.DoubleSide,...ADD})); g.add(disc);
+  const disc2=new THREE.Mesh(new THREE.CircleGeometry(7,64),new THREE.MeshBasicMaterial({map:spiralTex,color:new THREE.Color('#c38bff').multiplyScalar(.95),side:THREE.DoubleSide,...ADD})); disc2.position.z=.1; g.add(disc2);
+  addSprite(ringTex,'#bfe0ff',22,.9,g); addSprite(softTex,'#6a8cff',42,.35,g);
+  g.scale.setScalar(.001); sfx.play('rumble'); flashAt(P,'#cfe0ff',30,700); lightFlash(P,'#8fb8ff',.6);
+  const ship=makeShip(Math.floor(Math.random()*6),COLORS[Math.floor(Math.random()*COLORS.length)]); ship.visible=false; scene.add(ship);
+  const out=camAxis(Math.random()<.5?1:-1,0,0).multiplyScalar(.8).add(camAxis(0,0,1).multiplyScalar(.6)).normalize();
+  const T=9;
+  return { t:0, upd(dt){
+      this.t+=dt; const t=this.t, open=t<1.2?outBack(t/1.2):t<T-1.4?1:1-EASE.inCubic((t-(T-1.4))/1.4);
+      g.scale.setScalar(Math.max(.001,open)); disc.rotation.z-=dt*2.2; disc2.rotation.z+=dt*1.5;
+      if (t>2.4 && t<7.6){ ship.visible=true; const e=t-2.4; ship.position.copy(P).addScaledVector(out,e*e*3.6); ship.lookAt(ship.position.clone().add(out)); ship.scale.setScalar(Math.max(.01,5*Math.min(1,e*1.5))); if (!this.f){ this.f=1; sfx.play('far'); flashAt(P,'#ffffff',14,500); } } else ship.visible=false;
+      if (t>=T-.2 && !this.f2){ this.f2=1; flashAt(P,'#bfe0ff',24,700); }
+      return t>=T; }, dispose(){ disposeObj(g); disposeObj(ship); } };
+}
+function evMeteors(){
+  const base=skySpot(100,.5,.85,.5), dir=camAxis(Math.random()<.5?1:-1,0,0).addScaledVector(camAxis(0,-1,0),.6).normalize(), right=camAxis(1,0,0), up=camAxis(0,1,0);
+  const N=16, pos=new Float32Array(N*6), col=new Float32Array(N*6), geo=new THREE.BufferGeometry();
+  geo.setAttribute('position',new THREE.BufferAttribute(pos,3)); geo.setAttribute('color',new THREE.BufferAttribute(col,3));
+  for (let k=0;k<N;k++) col.set([1.6,1.5,1.3,0,0,0],k*6);
+  const lines=new THREE.LineSegments(geo,new THREE.LineBasicMaterial({vertexColors:true,...ADD})); lines.frustumCulled=false; scene.add(lines);
+  const ms=[], heads=[];
+  for (let k=0;k<N;k++){ ms.push({st:base.clone().addScaledVector(right,(Math.random()-.5)*70).addScaledVector(up,(Math.random()-.2)*28).addScaledVector(dir,-30),t0:Math.random()*3.6,life:.7+Math.random()*.6,sp:45+Math.random()*35}); heads.push(addSprite(glowTex,'#fff3df',1.4,0)); }
+  sfx.play('far');
+  const T=5.5;
+  return { t:0, upd(dt){
+      this.t+=dt; const t=this.t;
+      ms.forEach((m,k)=>{ const e=t-m.t0, h=heads[k]; if (e<0||e>m.life){ h.material.opacity=0; pos.set([m.st.x,m.st.y,m.st.z,m.st.x,m.st.y,m.st.z],k*6); return; } const hp=m.st.clone().addScaledVector(dir,e*m.sp), tl=hp.clone().addScaledVector(dir,-Math.min(e*m.sp,10)); pos.set([hp.x,hp.y,hp.z,tl.x,tl.y,tl.z],k*6); h.position.copy(hp); h.material.opacity=Math.sin(Math.PI*e/m.life); });
+      geo.attributes.position.needsUpdate=true; return t>=T; },
+    dispose(){ disposeObj(lines); heads.forEach(disposeObj); } };
+}
+function evBattle(){
+  const C=skySpot(105,.4,.8,.45), right=camAxis(1,0,0), up=camAxis(0,1,0), fwd=camAxis(0,0,-1), g=new THREE.Group(); scene.add(g);
+  const sides=[{col:'#ff5a6a',ships:[]},{col:'#4cc3ff',ships:[]}];
+  sides.forEach((sd,si)=>{ const type=Math.floor(Math.random()*6); for (let k=0;k<4;k++){ const s=makeShip(type,sd.col); s.scale.setScalar(3.4); s.userData.home=C.clone().addScaledVector(right,(si?1:-1)*(11+Math.random()*5)).addScaledVector(up,(Math.random()-.5)*9).addScaledVector(fwd,(Math.random()-.5)*9); s.userData.ph=Math.random()*6; s.userData.alive=true; s.position.copy(s.userData.home); g.add(s); sd.ships.push(s); } });
+  const B=40, bpos=new Float32Array(B*6), bcol=new Float32Array(B*6), bgeo=new THREE.BufferGeometry(), bolts=[];
+  bgeo.setAttribute('position',new THREE.BufferAttribute(bpos,3)); bgeo.setAttribute('color',new THREE.BufferAttribute(bcol,3));
+  for (let k=0;k<B;k++) bolts.push({active:false});
+  const blines=new THREE.LineSegments(bgeo,new THREE.LineBasicMaterial({vertexColors:true,...ADD})); blines.frustumCulled=false; scene.add(blines);
+  const alive=sd=>sd.ships.filter(s=>s.userData.alive), pick=a=>a[Math.floor(Math.random()*a.length)];
+  let fireT=0; const T=11; flashAt(C,'#ffffff',10,500);
+  return { t:0, upd(dt){
+      this.t+=dt; const t=this.t;
+      sides.forEach((sd,si)=>sd.ships.forEach(s=>{ if (!s.userData.alive) return; const h=s.userData.home, ph=s.userData.ph; s.position.copy(h).addScaledVector(up,Math.sin(t*1.3+ph)*1.6).addScaledVector(fwd,Math.cos(t*.9+ph)*2.2); if (t>T-1.6) s.userData.home.addScaledVector(right,(si?1:-1)*EASE.inCubic((t-(T-1.6))/1.6)*70*dt); s.lookAt(C.clone().addScaledVector(right,si?-14:14).addScaledVector(up,Math.sin(t+ph)*3)); }));
+      fireT-=dt;
+      if (t>.8 && t<T-1.8 && fireT<=0){ fireT=.07+Math.random()*.12; const si=Math.random()<.5?0:1, a=pick(alive(sides[si])), b=pick(alive(sides[1-si])), bo=bolts.find(x=>!x.active);
+        if (a && b && bo){ Object.assign(bo,{active:true,a:a.position.clone(),b:b.position.clone().add(rndDir().multiplyScalar(1.4)),t:0,dur:.3+Math.random()*.2,col:new THREE.Color(sides[si].col).multiplyScalar(2.2),target:b}); if (Math.random()<.25) sfx.play('pew'); } }
+      bolts.forEach((bo,k)=>{
+        if (!bo.active){ bcol.fill(0,k*6,k*6+6); return; }
+        bo.t+=dt; const e=bo.t/bo.dur, p1=bo.a.clone().lerp(bo.b,Math.min(1,e)), p0=bo.a.clone().lerp(bo.b,Math.max(0,e-.2));
+        bpos.set([p1.x,p1.y,p1.z,p0.x,p0.y,p0.z],k*6); bcol.set([bo.col.r,bo.col.g,bo.col.b,0,0,0],k*6);
+        if (e>=1){ bo.active=false; flashAt(bo.b,'#ffd9a8',1.7,300); const side=sides.find(sd=>sd.ships.includes(bo.target)); if (bo.target.userData.alive && Math.random()<.08 && alive(side).length>1){ bo.target.userData.alive=false; bo.target.visible=false; flashAt(bo.b,'#ffb070',7,800); for (let j=0;j<6;j++){ const d=addSprite(glowTex,'#ffb070',1.2,1); d.position.copy(bo.b); const v=rndDir().multiplyScalar(6); tween(900,x=>{ d.position.addScaledVector(v,.016); d.material.opacity=1-x; }).then(()=>disposeObj(d)); } sfx.play('far'); } }
+      });
+      bgeo.attributes.position.needsUpdate=true; bgeo.attributes.color.needsUpdate=true;
+      return t>=T; }, dispose(){ disposeObj(g); disposeObj(blines); } };
+}
+const AMBIENT_TYPES={blackhole:evBlackHole,carrier:evCarrier,fleet:evFleet,nova:evNova,comet:evComet,planetboom:evPlanetBoom,planetform:evPlanetForm,wormhole:evWormhole,meteors:evMeteors,battle:evBattle};
+const AMBIENT_W=[['planetboom',15],['nova',12],['blackhole',8],['carrier',8],['fleet',10],['comet',6],['meteors',10],['wormhole',8],['battle',9],['planetform',5]];
 function spawnAmbient(type,arg){
-  if (REDUCED) return;
-  if (!type){ const r=Math.random(); type=r<.22?'blackhole':r<.44?'carrier':r<.7?'fleet':r<.85?'nova':'comet'; }
-  try { ambient.list.push(AMBIENT_TYPES[type](arg)); } catch(e){ console.error(e); }
+  if (REDUCED) return false;
+  if (!type){ let r=Math.random()*AMBIENT_W.reduce((s,[,w])=>s+w,0); for (const [t,w] of AMBIENT_W){ if ((r-=w)<=0){ type=t; break; } } }
+  try { const ev=AMBIENT_TYPES[type](arg); if (!ev) return type==='nova' ? false : spawnAmbient('nova'); ambient.list.push(ev); return true; } catch(e){ console.error(e); return false; }
 }
 function updateAmbient(dt){
+  skyFlash=Math.max(0,skyFlash-dt*.9); flashLight.intensity=skyFlash*2.4;
+  for (const w of worlds){ if (w.obj && !w.busy) w.obj.userData.mesh.rotation.y+=dt*w.obj.userData.spin; }
+  if (REDUCED) return;
   ambient.t-=dt;
-  if (ambient.t<=0){ ambient.t=16+Math.random()*22; if (!document.hidden && ambient.list.length<2) spawnAmbient(); }
-  for (let k=ambient.list.length-1;k>=0;k--){ const a=ambient.list[k]; if (a.upd(dt)){ a.dispose(); ambient.list.splice(k,1); } }
+  if (ambient.t<=0){ ambient.t=11+Math.random()*16; if (!document.hidden && ambient.list.length<2) spawnAmbient(); }
+  for (const w of worlds){ if (!w.obj && !w.busy && w.reformAt!=null && clockT>w.reformAt && ambient.list.length<3){ const ev=evPlanetForm(w); if (ev) ambient.list.push(ev); } }
+  for (let k=ambient.list.length-1;k>=0;k--){ const a=ambient.list[k]; if (!a){ ambient.list.splice(k,1); continue; } let done=true; try { done=a.upd(dt); } catch(e){ console.error(e); } if (done){ try { a.dispose(); } catch(e){} ambient.list.splice(k,1); } }
 }
 function firework(p,color){
   const c=new THREE.Color(color).multiplyScalar(1.7);
@@ -1658,6 +1930,7 @@ function onState(S){
   } else if (!animating){ syncProps(S); placeTokens(S); highlightTile(); renderGame(); refreshModal(); }
 }
 async function playEvents(evs,S){
+  const endsGame=evs.some(x=>x.t==='win');
   for (const e of evs){
     switch (e.t){
       case 'dice': sfx.play('dice'); await animateDice(e.d); await wait(120); break;
@@ -1675,7 +1948,7 @@ async function playEvents(evs,S){
       case 'potAdj': chipDelta('__pot',e.d); break;
       case 'jackpot': {
         const b=tokPos(e.id); sfx.play('win'); chipDelta('__pot',-e.amt);
-        toast(`${nm(S,e.id)} räumt den Pott ab: +${fmt(e.amt)}`,true);
+        toast(e.part?`${nm(S,e.id)} gewinnt ${fmt(e.amt)} aus dem Pott`:`${nm(S,e.id)} räumt den Pott ab: +${fmt(e.amt)}`,true);
         await beam(BANK_POS.clone(),b,'#ffc35a');
         floatText('+'+e.amt,'#ffd27a',b); chipDelta(e.id,e.amt); burst(b,'#ffc35a',60,2.6); firework(b.clone().add(V3(0,1.4,0)),'#ffc35a'); burst(b,'#ffffff',24,1.8); sfx.play('coin');
         await wait(600); break;
@@ -1687,8 +1960,10 @@ async function playEvents(evs,S){
       case 'bankrupt': {
         const t=tokens[e.id]; shake=1.3; spawnAmbient('blackhole');
         if (t){ const p=t.position.clone(); burst(p,'#ff9a4a',80,3.2); burst(p,'#ffffff',36,2.2); flashAt(p,'#ff9a4a',4,700); sfx.play('boom'); await tween(500,x=>{ const s=1-EASE.inCubic(x); t.scale.set(s,s,s); }); t.visible=false; t.scale.set(1,1,1); }
-        if (mode==='online' && e.id===myId){ sfx.play('lose'); showEnd('lose',{S,id:e.id,kicker:'Bankrott',title:'Pleite.',sub:'Deine Flotte ist zerschlagen. Du kannst dem Spiel weiter zuschauen.'}); }
-        else { sfx.play('lose'); showEnd('lose',{S,id:e.id,kicker:`${nm(S,e.id)} ist bankrott`,title:'Pleite.',sub:'Alle Welten wechseln den Besitzer.',auto:3800}); }
+        if (endsGame){ /* the win or lose screen follows right away */ }
+        else if (mode==='online' && e.id===myId){ sfx.play('lose'); showEnd('lose',{S,id:e.id,kicker:'Bankrott',title:'Pleite.',sub:'Deine Flotte ist zerschlagen. Du kannst dem Spiel weiter zuschauen.'}); }
+        else if (mode==='local'){ sfx.play('lose'); showEnd('lose',{S,id:e.id,kicker:`${nm(S,e.id)} ist bankrott`,title:'Pleite.',sub:'Alle Welten wechseln den Besitzer.',auto:3800}); }
+        else toast(`${nm(S,e.id)} ist bankrott – alle Welten wechseln den Besitzer.`);
         await wait(900); break; }
       case 'offer': sfx.play('tap'); break;
       case 'trade': { syncProps(S); const a=tokPos(e.from), b=tokPos(e.to); sfx.play('buy'); await Promise.all([beam(a,b,S.players[e.from].color),beam(b,a,S.players[e.to].color)]); chipDelta(e.from,e.a); chipDelta(e.to,-e.a); break; }
@@ -1989,6 +2264,7 @@ function showView(v){
 }
 const ICON_LOW='<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6"/></svg>';
 function renderSoundBtn(){
+  sfx.applyMute();
   const muted=!sfx.on||sfx.vol<=0, icon=muted?ICON.mute:sfx.vol<45?ICON_LOW:ICON.sound, v=muted?0:Math.round(sfx.vol);
   $('#btnSound').innerHTML=icon; $('#volMute').innerHTML=icon; $('#volMute').setAttribute('aria-label',muted?'Ton einschalten':'Stumm schalten');
   const r=$('#volRange'); r.value=v; r.style.setProperty('--p',v+'%'); $('#volVal').textContent=muted?'aus':v;
@@ -2110,13 +2386,7 @@ function renderPlayers(S){
     setMoney(id,p.money);
   });
   let pc=chips.get('__pot');
-  if (!pc){
-    const el=document.createElement('button'); el.type='button'; el.className='chip glass potchip'; el.style.setProperty('--c','#ffc35a'); el.setAttribute('aria-label','Pott – Details zum Nebel-Rastplatz');
-    el.innerHTML=`<span class="chip-ic">${POT_SVG}</span><div style="min-width:0;text-align:left"><div class="chip-nm">Pott</div><div class="chip-meta">Abräumen auf dem Nebel-Rastplatz</div></div><div class="chip-money"></div>`;
-    el.addEventListener('click',()=>{ sfx.play('tap'); openTile(20); });
-    box.appendChild(el);
-    pc={el,moneyEl:el.querySelector('.chip-money'),cur:S.pot||0,to:S.pot||0}; pc.moneyEl.textContent=fmt(pc.cur); chips.set('__pot',pc);
-  }
+  if (!pc){ const el=$('#potPill'); pc={el,moneyEl:el.querySelector('.pot-val'),cur:S.pot||0,to:S.pot||0}; pc.moneyEl.textContent=fmt(pc.cur); chips.set('__pot',pc); }
   setMoney('__pot',S.pot||0);
 }
 const POT_SVG='<svg class="ship-ic" viewBox="0 0 40 40" aria-hidden="true"><path style="fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round" d="M20 20a3 3 0 1 1 6 0a7 7 0 1 1-14 0a11 11 0 1 1 22 0a15 15 0 1 1-30 0"/></svg>';
@@ -2144,8 +2414,8 @@ function dockHtml(S){
     return h+'</div>'+tools(false);
   }
   if (!mine){
-    const sub = spectator ? 'Du schaust diesem Spiel zu.' : S.phase==='bet' ? 'Überlegt, ob eine Schmugglerwette drin ist.' : S.phase==='buy' ? 'Entscheidet gerade über einen Kauf.' : S.phase==='end' ? 'Erledigt noch Geschäfte.' : 'Macht sich bereit zum Würfeln.';
-    return `<div><div class="d-title">${whoTitle}</div><div class="d-sub">${sub}</div></div><div class="d-actions">${mode==='online'&&S.host===myId?'<button class="pill small" data-act="forceSkip">Zug überspringen</button>':''}</div>${tools(false)}`;
+    const sub = spectator ? 'Du schaust diesem Spiel zu.' : S.phase==='bet' ? 'Überlegt, ob gewettet wird.' : S.phase==='buy' ? 'Entscheidet gerade über einen Kauf.' : S.phase==='end' ? 'Erledigt noch Geschäfte.' : 'Macht sich bereit zum Würfeln.';
+    return `<div><div class="d-title">${whoTitle}</div><div class="d-sub">${sub}</div></div><div class="d-actions"></div>${tools(false)}`;
   }
   const can=S.phase==='roll'||S.phase==='end';
   let sub='', act='', wide='';
@@ -2159,8 +2429,8 @@ function dockHtml(S){
     wide=`<button class="deedline d-wide" data-act="tile" data-i="${i}" style="--g:${spaceColor(i)};border:0;color:inherit;font:inherit;cursor:pointer;text-align:left"><span class="sw"></span><span><span class="nm">${esc(sp.name)}</span><br><span class="hint">${sp.t==='prop'?esc(GROUPS[sp.g].name)+' · Gebühr ab '+sp.rent[0]+' Cr':sp.t==='gate'?'Sprungtor · 25–200 Cr':'Anlage · 4× oder 10× Würfel'}</span></span><span class="pr">${fmt(sp.price)}</span></button>`;
     act=`<button class="pill gold" data-act="buy" ${p.money<sp.price?'disabled':''}>Kaufen</button><button class="pill" data-act="pass">Verzichten</button>`;
   } else if (S.phase==='bet'){
-    sub='Schmugglerwette: Setz Credits aufs Glücksrad – von 0× bis 3× ist alles drin.';
-    act=BET_STAKES.map(x=>`<button class="pill gold" data-act="bet" data-s="${x}" ${p.money<x?'disabled':''}>${x} Cr</button>`).join('')+`<button class="pill" data-act="bet" data-s="0">Nicht wetten</button>`;
+    const B=BET_KINDS[S.betKind]||BET_KINDS.smuggle; sub=B.desc;
+    act=B.stakes.map(x=>`<button class="pill gold" data-act="bet" data-s="${x}" ${p.money<x?'disabled':''}>${x} Cr</button>`).join('')+`<button class="pill" data-act="bet" data-s="0">Nicht wetten</button>`;
   } else if (S.phase==='end'){
     if (p.money<0){ sub=`Du schuldest ${fmt(-p.money)}. Verpfände Welten oder verkaufe Bauten – oder gib auf.`; act=`<button class="pill primary" data-act="manage">Besitz verwalten</button><button class="pill danger" data-act="bankrupt">Bankrott erklären</button>`; }
     else { sub='Baue, handle oder beende deinen Zug.'; act=`<button class="pill primary" data-act="end">Zug beenden</button>`; }
@@ -2290,7 +2560,7 @@ function rulesModal(){
       <div><dt>Welten kaufen</dt><dd>Landest du auf einer freien Welt, einem Sprungtor oder einer Anlage, darfst du kaufen.</dd></div>
       <div><dt>Landegebühren</dt><dd>Fremder Besitz kostet. Eine komplette Farbgruppe verdoppelt die Grundgebühr. Sprungtore kosten 25 bis 200 Cr, Anlagen 4× oder 10× die Würfelsumme.</dd></div>
       <div><dt>Bauen</dt><dd>Mit einer kompletten Gruppe baust du gleichmäßig bis zu vier Außenposten pro Welt, danach eine Zitadelle. Tippe dafür in deinem Zug auf „Bauen“.</dd></div>
-      <div><dt>Ereignisse und Glücksrad</dt><dd>Holo-Funk und Schmugglerfunk bringen Fluggebühren, Steuerprüfungen und Stürme. Beim Glücksrad entscheidet das Rad, wie viel Prozent deiner aktuellen Credits fällig werden, wie hoch dein Gewinn ausfällt oder ob deine Schmugglerwette aufgeht.</dd></div>
+      <div><dt>Ereignisse und Glücksrad</dt><dd>Holo-Funk und Schmugglerfunk bringen Fluggebühren, Steuerprüfungen, Piraten, Erbschaften, Lotto und Abkürzungen. Bei manchen Karten darfst du freiwillig wetten: Schmugglerwette, Doppelt oder nichts, Investition. Beim Glücksrad entscheidet das Rad, wie viel Prozent deiner aktuellen Credits fällig werden, wie hoch dein Gewinn ausfällt oder ob deine Schmugglerwette aufgeht.</dd></div>
       <div><dt>Der Pott</dt><dd>Alles, was du an Ereignisfeldern, durch Karten, am Glücksrad oder als Kaution verlierst, landet im Pott in der Mitte. Wer auf dem Nebel-Rastplatz landet, räumt ihn komplett ab.</dd></div>
       <div><dt>Arrestbake</dt><dd>Raus kommst du mit Pasch, 50 Cr Kaution oder Freikarte. Nach drei Fehlversuchen zahlst du automatisch.</dd></div>
       <div><dt>Geldnot</dt><dd>Verpfände Welten (halber Kaufpreis) oder verkaufe Bauten (halber Baupreis). Reicht es nicht, erklärst du Bankrott.</dd></div>
