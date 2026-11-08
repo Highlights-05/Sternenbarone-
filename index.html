@@ -159,7 +159,7 @@ button:focus-visible,.ship:focus-visible{outline:2px solid var(--holo);outline-o
 .deedline .nm{font-weight:600}
 .deedline .pr{margin-left:auto;font-family:var(--mono);color:var(--gold)}
 .d-tools{grid-column:1/-1;display:flex;gap:6px;border-top:1px solid var(--stroke);padding-top:12px;margin-top:2px}
-.tool{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:38px;border-radius:12px;border:0;background:transparent;color:var(--dim);font-size:13px;font-weight:600;cursor:pointer;transition:background .25s var(--ease),color .25s var(--ease)}
+.tool{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;gap:6px;height:38px;border-radius:12px;border:0;background:transparent;color:var(--dim);font-size:13px;font-weight:600;cursor:pointer;transition:background .25s var(--ease),color .25s var(--ease)}
 .tool:hover:not(:disabled){background:rgba(255,255,255,.08);color:var(--text)}
 .tool:disabled{opacity:.35;cursor:default}
 #dock.busy .d-actions .pill{opacity:.45;pointer-events:none}
@@ -227,6 +227,15 @@ button:focus-visible,.ship:focus-visible{outline:2px solid var(--holo);outline-o
 .lvl i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18)}
 .lvl i.on{background:var(--green);box-shadow:0 0 8px var(--green)}
 .lvl.cit i{background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.bgroup{display:flex;flex-direction:column;gap:2px;padding:12px 14px;border-radius:20px;background:color-mix(in srgb,var(--g) 9%,rgba(255,255,255,.03));border:1px solid color-mix(in srgb,var(--g) 32%,transparent)}
+.bhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:6px}
+.bhead b{font-weight:700}
+.bhead .pill{margin-left:auto}
+.brow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:9px 0;border-top:1px solid var(--stroke)}
+.brow .nm{font-weight:600;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.brow .sub{font-size:12px;color:var(--dim)}
+.brow .btns{display:flex;gap:6px}
+.pill svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .tradecols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media (max-width:520px){ .tradecols{grid-template-columns:1fr} }
 .tcol{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:18px;background:rgba(255,255,255,.04)}
@@ -330,14 +339,14 @@ function rnd6(){ const a = new Uint32Array(1); crypto.getRandomValues(a); return
 
 /* ============================================================ board data */
 const GROUPS = [
-  {name:'Randwelten',    color:'#d07a45', house:50},
-  {name:'Eisgürtel',     color:'#8fdcff', house:50},
-  {name:'Sporen-Sektor', color:'#e061b8', house:100},
-  {name:'Dünenmeer',     color:'#ffa83f', house:100},
-  {name:'Glutzone',      color:'#ff4d42', house:150},
-  {name:'Wolkenreich',   color:'#ffe066', house:150},
-  {name:'Lebensgürtel',  color:'#45dc86', house:200},
-  {name:'Kernwelten',    color:'#6b7cff', house:200},
+  {name:'Randwelten',    color:'#ff8a1f', house:50},
+  {name:'Eisgürtel',     color:'#22d8f5', house:50},
+  {name:'Sporen-Sektor', color:'#ff3fb4', house:100},
+  {name:'Dünenmeer',     color:'#ffe14a', house:100},
+  {name:'Glutzone',      color:'#ff2e2e', house:150},
+  {name:'Wolkenreich',   color:'#9a6bff', house:150},
+  {name:'Lebensgürtel',  color:'#2ee66b', house:200},
+  {name:'Kernwelten',    color:'#2f62ff', house:200},
 ];
 const P = (name,g,price,rent) => ({t:'prop',name,g,price,rent});
 const SPACES = [
@@ -385,7 +394,7 @@ const SPACES = [
 const GATES = [5,15,25,35], UTILS = [12,28];
 const BUYABLE = i => ['prop','gate','util'].includes(SPACES[i].t);
 const GROUP_IDX = GROUPS.map((_,g) => SPACES.map((s,i) => (s.t==='prop' && s.g===g) ? i : -1).filter(i => i >= 0));
-const spaceColor = i => { const s = SPACES[i]; return s.t==='prop' ? GROUPS[s.g].color : s.t==='gate' ? '#a9c4ee' : s.t==='util' ? '#7ef0d0' : '#5ab8ff'; };
+const spaceColor = i => { const s = SPACES[i]; return s.t==='prop' ? GROUPS[s.g].color : s.t==='gate' ? '#b9c7dc' : s.t==='util' ? '#ffffff' : '#5ab8ff'; };
 const STROKE = 'style="fill:none;stroke:currentColor;stroke-width:3"';
 const SHIPS = [
   {name:'Pfeiljäger',  svg:'<path d="M20 3l3 13 13 9v4l-13-4-1 9h-4l-1-9-13 4v-4l13-9z"/>'},
@@ -407,6 +416,7 @@ const ICON = {
   grid:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.2" transform="rotate(-18 12 12)"/></svg>',
   swap:'<svg viewBox="0 0 24 24"><path d="M7 7h12l-3.5-3.5M17 17H5l3.5 3.5"/></svg>',
   list:'<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  build:'<svg viewBox="0 0 24 24"><path d="M3.5 20h17M6 20v-7.5L12 7l6 5.5V20"/><path d="M10 20v-4.5h4V20M12 3v4"/></svg>',
 };
 
 /* ============================================================ cards */
@@ -444,11 +454,11 @@ const CARDS = {
     {x:'Medizinische Versorgung nach einem Meteoritenschauer. Zahle 100 Cr.', f:(S,id)=>charge(S,id,100,null)},
     {x:'Sieg beim Schwerkraft-Rennen. Kassiere 100 Cr.', f:(S,id)=>credit(S,id,100)},
     {x:'Sensor-Upgrade: 40 Cr je Außenposten, 115 Cr je Zitadelle.', f:(S,id)=>{const [h,c]=buildingCounts(S,id); const a=h*40+c*115; if(a) charge(S,id,a,null);}},
-    {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deines Gesamtvermögens (Credits + Wert deiner Welten) du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
+    {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deiner aktuellen Credits du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
     {x:'Fluggebühr der Raumfahrtbehörde: 25 Cr plus 15 Cr für jede Welt in deinem Besitz.', f:(S,id)=>cardFlightFee(S,id)},
     {x:'Asteroidensturm über deinen Welten! Zahle 5 % ihres Kaufwerts für Reparaturen.', f:(S,id)=>cardStorm(S,id)},
     {x:'Steuerprüfung der Handelsgilde: Der reichste Pilot zahlt 10 % seiner Credits an den ärmsten.', f:(S)=>cardAudit(S)},
-    {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deines Gesamtvermögens (Credits + Wert deiner Welten) du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
+    {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deiner aktuellen Credits du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
   ]
 };
 const round5 = n => Math.round(n/5)*5;
@@ -459,10 +469,10 @@ const WHEEL_GUILD=[{l:'+250',v:250,c:'good'},{l:'−100',v:-100,c:'bad'},{l:'+50
 const WHEEL_BET=[{l:'0×',v:0,c:'bad'},{l:'2×',v:2,c:'good'},{l:'0×',v:0,c:'bad'},{l:'1×',v:1,c:'zero'},{l:'½×',v:.5,c:'bad'},{l:'3×',v:3,c:'jackpot'},{l:'1,5×',v:1.5,c:'good'},{l:'0×',v:0,c:'bad'}];
 const BET_STAKES=[50,100,250];
 function cardWealthTax(S,id){
-  const w=wealth(S,id), x=spin(S,id,'Vermögensabgabe',WHEEL_TAX), amt=round5(w*Math.abs(x.v)/100);
+  const w=Math.max(0,S.players[id].money), x=spin(S,id,'Vermögensabgabe',WHEEL_TAX), amt=round5(w*Math.abs(x.v)/100);
   if (!x.v || !amt){ log(S,`Glück gehabt: ${nm(S,id)} zahlt keine Vermögensabgabe.`); return; }
   if (x.v>0){ charge(S,id,amt,null); log(S,`Das Glücksrad zeigt ${x.v} %: ${nm(S,id)} zahlt ${amt} Cr Vermögensabgabe.`); }
-  else { credit(S,id,amt); log(S,`Rückerstattung! ${nm(S,id)} erhält 5 % des Vermögens: ${amt} Cr.`); }
+  else { credit(S,id,amt); log(S,`Rückerstattung! ${nm(S,id)} erhält 5 % der Credits: ${amt} Cr.`); }
 }
 function cardGuildWheel(S,id){
   const x=spin(S,id,'Glücksrad der Handelsgilde',WHEEL_GUILD);
@@ -668,6 +678,13 @@ function mortErr(S,id,i){
 }
 function unmortErr(S,id,i){ const pr=S.props[i]; if (pr.owner!==id || !pr.mort) return 'Nicht möglich.'; if (S.players[id].money<unmortCost(i)) return 'Nicht genug Credits.'; return null; }
 function actBuild(S,id,i){ if (!canManage(S,id) || buildErr(S,id,i)) return false; const sp=SPACES[i], cost=GROUPS[sp.g].house; S.props[i].houses++; S.players[id].money-=cost; emit(S,{t:'build',id,i,amt:cost}); log(S,`${nm(S,id)} errichtet ${S.props[i].houses===5?'eine Zitadelle':'einen Außenposten'} auf ${sp.name}.`); }
+function actBuildGroup(S,id,g){
+  if (!canManage(S,id)) return false;
+  const order=GROUP_IDX[g].slice().sort((a,b)=>S.props[a].houses-S.props[b].houses||a-b);
+  let n=0; for (const i of order){ if (!buildErr(S,id,i)){ actBuild(S,id,i); n++; } }
+  if (!n) return false;
+}
+function canBuildAny(S,id){ return Object.keys(S.props).some(i=>S.props[i].owner===id && SPACES[i].t==='prop' && !buildErr(S,id,+i)); }
 function actSell(S,id,i){ if (!canManage(S,id) || sellErr(S,id,i)) return false; const sp=SPACES[i], amt=GROUPS[sp.g].house/2; S.props[i].houses--; S.players[id].money+=amt; emit(S,{t:'sell',id,i,amt}); log(S,`${nm(S,id)} verkauft einen Bau auf ${sp.name}.`); }
 function actMort(S,id,i){ if (!canManage(S,id) || mortErr(S,id,i)) return false; const amt=SPACES[i].price/2; S.props[i].mort=true; S.players[id].money+=amt; emit(S,{t:'mort',id,i,amt}); log(S,`${nm(S,id)} verpfändet ${SPACES[i].name} für ${amt} Cr.`); }
 function actUnmort(S,id,i){ if (!canManage(S,id) || unmortErr(S,id,i)) return false; const amt=unmortCost(i); S.props[i].mort=false; S.players[id].money-=amt; emit(S,{t:'unmort',id,i,amt}); log(S,`${nm(S,id)} löst ${SPACES[i].name} aus.`); }
@@ -1805,7 +1822,7 @@ function tradeSummary(S,t){
   return `<div class="trade-sum"><div><b>${esc(nm(S,t.from))}</b> gibt ${side(t.give.props,t.give.money)}</div><div><b>${esc(nm(S,t.to))}</b> gibt ${side(t.get.props,t.get.money)}</div></div>`;
 }
 function dockHtml(S){
-  const tools=(canTrade)=>`<div class="d-tools"><button class="tool" data-act="manage">${ICON.grid}<span>Besitz</span></button><button class="tool" data-act="trade" ${canTrade?'':'disabled'}>${ICON.swap}<span>Handel</span></button><button class="tool" data-act="log">${ICON.list}<span>Logbuch</span></button></div>`;
+  const tools=(canTrade,canBuild=canTrade)=>`<div class="d-tools"><button class="tool" data-act="manage">${ICON.grid}<span>Besitz</span></button><button class="tool" data-act="buildOpen" ${canBuild?'':'disabled'}>${ICON.build}<span>Bauen</span></button><button class="tool" data-act="trade" ${canTrade?'':'disabled'}>${ICON.swap}<span>Handel</span></button><button class="tool" data-act="log">${ICON.list}<span>Logbuch</span></button></div>`;
   if (S.status==='over'){
     return `<div><div class="winner">${S.winner?esc(nm(S,S.winner))+' ist Sternenbaron.':'Spiel beendet.'}</div><div class="d-sub">Alle anderen sind bankrott.</div></div><div class="d-actions"><button class="pill primary" data-act="menu">Zum Hauptmenü</button>${mode==='online'&&S.host===myId?'<button class="pill danger small" data-act="deleteGame">Spiel löschen</button>':''}</div>`;
   }
@@ -1842,6 +1859,7 @@ function dockHtml(S){
     if (p.money<0){ sub=`Du schuldest ${fmt(-p.money)}. Verpfände Welten oder verkaufe Bauten – oder gib auf.`; act=`<button class="pill primary" data-act="manage">Besitz verwalten</button><button class="pill danger" data-act="bankrupt">Bankrott erklären</button>`; }
     else { sub='Baue, handle oder beende deinen Zug.'; act=`<button class="pill primary" data-act="end">Zug beenden</button>`; }
   }
+  if (can && p.money>=0 && canBuildAny(S,id)) act+=`<button class="pill" data-act="buildOpen">${ICON.build}Bauen</button>`;
   return `<div><div class="d-title">${whoTitle}</div><div class="d-sub">${sub}</div></div><div class="d-actions">${act}</div>${wide}${tools(can)}`;
 }
 function renderDock(S){
@@ -1870,6 +1888,7 @@ function refreshModal(force){
   else if (modalKind==='rules') html=rulesModal();
   else if (modalKind==='trade') html=tradeModal();
   else if (modalKind==='log') html=logModal();
+  else if (modalKind==='build') html=buildModal();
   if (html===null){ closeModal(); return; }
   const sc=modal.querySelector('.sheet')?.scrollTop||0;
   modal.innerHTML=`<div class="sheet glass" role="dialog" aria-modal="true">${html}</div>`;
@@ -1917,6 +1936,28 @@ function manageModal(){
     <p class="hint">${can?'Baue gleichmäßig auf kompletten Gruppen. Verkaufte Bauten bringen die Hälfte zurück, Verpfänden den halben Kaufpreis.':'Verwalten kannst du nur während deines Zuges.'}</p>
     <div class="mlist">${rows||'<p class="hint">Du besitzt noch keine Welten.</p>'}</div>`;
 }
+const lvlHtml=pr=>pr.houses===5?'<span class="lvl cit"><i></i></span>':`<span class="lvl">${[0,1,2,3].map(k=>`<i class="${k<pr.houses?'on':''}"></i>`).join('')}</span>`;
+function buildModal(){
+  const S=state; if (!S || !S.players) return null;
+  const me=actorId(); if (!S.players[me]) return null;
+  const can=canManage(S,me), p=S.players[me];
+  const groups=GROUPS.map((G,g)=>({G,g,own:GROUP_IDX[g].filter(j=>S.props[j].owner===me).length,n:GROUP_IDX[g].length}));
+  const full=groups.filter(x=>x.own===x.n), partial=groups.filter(x=>x.own>0 && x.own<x.n);
+  const blocks=full.map(({G,g})=>{
+    const rows=GROUP_IDX[g].map(i=>{
+      const sp=SPACES[i], pr=S.props[i], e=buildErr(S,me,i), now=pr.houses?sp.rent[pr.houses]:sp.rent[0]*2, next=pr.houses<5?sp.rent[pr.houses+1]:null;
+      const label=pr.houses>=5?'Voll ausgebaut':pr.houses===4?'+ Zitadelle':'+ Außenposten';
+      return `<div class="brow"><div style="min-width:0"><div class="nm">${esc(sp.name)}${lvlHtml(pr)}</div><div class="sub">Gebühr ${now} Cr${next?` → ${next} Cr`:''}${pr.mort?' · verpfändet':''}</div></div><div class="btns">${can?`${pr.houses>0?`<button class="pill small" data-act="sell" data-i="${i}" ${sellErr(S,me,i)?'disabled':''} aria-label="Einen Bau auf ${esc(sp.name)} verkaufen">−</button>`:''}<button class="pill small gold" data-act="build" data-i="${i}" ${e?`disabled title="${esc(e)}"`:''}>${label}</button>`:''}</div></div>`;
+    }).join('');
+    const any=GROUP_IDX[g].some(j=>!buildErr(S,me,j));
+    return `<section class="bgroup" style="--g:${G.color}"><div class="bhead"><span class="cdot" style="--c:${G.color}"></span><b>${esc(G.name)}</b><span class="hint">${G.house} Cr pro Bau</span>${can?`<button class="pill small primary" data-act="buildGroup" data-g="${g}" ${any?'':'disabled'}>Ganze Gruppe +1</button>`:''}</div>${rows}</section>`;
+  }).join('');
+  const prog=partial.length?`<div class="field"><span class="lbl">Fast komplett</span>${partial.map(x=>`<div class="mrow" style="grid-template-columns:auto 1fr auto"><span class="cdot" style="--c:${x.G.color}"></span><span>${esc(x.G.name)}</span><span class="hint">${x.own} von ${x.n} Welten</span></div>`).join('')}</div>`:'';
+  return `<div class="sheet-head"><div><div class="eyebrow">${esc(nm(S,me))} · ${fmt(p.money)}</div><h2>Bauen</h2></div>${closeBtn}</div>
+    <p class="hint">${can?'Mit einer kompletten Farbgruppe baust du gleichmäßig bis zu vier Außenposten pro Welt, danach eine Zitadelle. Verkaufen bringt die Hälfte zurück.':'Bauen kannst du nur während deines Zuges.'}</p>
+    ${blocks||'<p class="hint">Noch keine komplette Farbgruppe. Sammle alle Welten einer Farbe – dann verdoppelt sich die Grundgebühr und du darfst bauen.</p>'}
+    ${prog}`;
+}
 function tradeModal(){
   const S=state, me=actorId(); if (!S || !canManage(S,me)) return null;
   const others=S.order.filter(o=>o!==me && !S.players[o].out);
@@ -1942,8 +1983,8 @@ function rulesModal(){
       <div><dt>Würfeln und fliegen</dt><dd>Zwei Würfel bestimmen deinen Flug. Bei einem Pasch würfelst du noch einmal – beim dritten Pasch in Folge geht es in die Arrestbake.</dd></div>
       <div><dt>Welten kaufen</dt><dd>Landest du auf einer freien Welt, einem Sprungtor oder einer Anlage, darfst du kaufen.</dd></div>
       <div><dt>Landegebühren</dt><dd>Fremder Besitz kostet. Eine komplette Farbgruppe verdoppelt die Grundgebühr. Sprungtore kosten 25 bis 200 Cr, Anlagen 4× oder 10× die Würfelsumme.</dd></div>
-      <div><dt>Bauen</dt><dd>Mit einer kompletten Gruppe baust du gleichmäßig bis zu vier Außenposten pro Welt, danach eine Zitadelle.</dd></div>
-      <div><dt>Ereignisse und Glücksrad</dt><dd>Holo-Funk und Schmugglerfunk bringen Fluggebühren, Steuerprüfungen und Stürme. Beim Glücksrad entscheidet das Rad, wie viel Prozent deines Vermögens fällig werden, wie hoch dein Gewinn ausfällt oder ob deine Schmugglerwette aufgeht.</dd></div>
+      <div><dt>Bauen</dt><dd>Mit einer kompletten Gruppe baust du gleichmäßig bis zu vier Außenposten pro Welt, danach eine Zitadelle. Tippe dafür in deinem Zug auf „Bauen“.</dd></div>
+      <div><dt>Ereignisse und Glücksrad</dt><dd>Holo-Funk und Schmugglerfunk bringen Fluggebühren, Steuerprüfungen und Stürme. Beim Glücksrad entscheidet das Rad, wie viel Prozent deiner aktuellen Credits fällig werden, wie hoch dein Gewinn ausfällt oder ob deine Schmugglerwette aufgeht.</dd></div>
       <div><dt>Arrestbake</dt><dd>Raus kommst du mit Pasch, 50 Cr Kaution oder Freikarte. Nach drei Fehlversuchen zahlst du automatisch.</dd></div>
       <div><dt>Geldnot</dt><dd>Verpfände Welten (halber Kaufpreis) oder verkaufe Bauten (halber Baupreis). Reicht es nicht, erklärst du Bankrott.</dd></div>
       <div><dt>Handel</dt><dd>In deinem Zug kannst du Mitspielern Welten und Credits anbieten.</dd></div>
@@ -1987,6 +2028,8 @@ const handlers={
   forceSkip:()=>commit(actForceSkip),
   manage:()=>openModal('manage'),
   tile:d=>openTile(+d.i),
+  buildOpen:()=>openModal('build'),
+  buildGroup:d=>commit(S=>actBuildGroup(S,actorId(),+d.g)),
   build:d=>commit(S=>actBuild(S,actorId(),+d.i)),
   sell:d=>commit(S=>actSell(S,actorId(),+d.i)),
   mort:d=>commit(S=>actMort(S,actorId(),+d.i)),
