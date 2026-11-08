@@ -1,0 +1,2030 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Sternenbarone – ein Weltraum-Handelsspiel mit 3D-Brett für 2 bis 6 Piloten. Online mit Freunden, ohne Konto.">
+<meta name="theme-color" content="#020308">
+<title>Sternenbarone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: full-screen 3D holotable; frosted-glass HUD floats above it (players top-left, action dock bottom-center). */
+:root{
+  --bg:#020308;
+  --glass:rgba(20,22,30,.56); --glass-strong:rgba(26,28,38,.78);
+  --stroke:rgba(255,255,255,.09); --stroke2:rgba(255,255,255,.18);
+  --text:#f5f5f7; --dim:rgba(235,235,245,.62); --faint:rgba(235,235,245,.38);
+  --holo:#5ab8ff; --holo2:#2f8fff; --gold:#ffc35a; --red:#ff5a5f; --green:#4fe08a;
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --hud:"Rajdhani","Inter",system-ui,sans-serif;
+  --mono:"SF Mono","JetBrains Mono",ui-monospace,Menlo,monospace;
+  --ease:cubic-bezier(.22,1,.36,1); --spring:cubic-bezier(.34,1.4,.64,1);
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.45;overflow:hidden;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+button{font:inherit;color:inherit}
+#stage{position:fixed;inset:0}
+#c{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#c:active{cursor:grabbing}
+#vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(130% 95% at 50% 45%,transparent 50%,rgba(0,0,0,.6) 100%)}
+.glass{background:var(--glass);-webkit-backdrop-filter:blur(28px) saturate(170%);backdrop-filter:blur(28px) saturate(170%);border:1px solid var(--stroke);box-shadow:0 20px 60px -20px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.06)}
+
+/* top bar */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:calc(env(safe-area-inset-top,0px) + 12px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
+#topbar>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:10px;height:40px;padding:0 16px 0 12px;border-radius:999px;font-weight:600;letter-spacing:-.01em}
+.brand svg{width:20px;height:20px;fill:none;stroke:var(--gold);stroke-width:1.6}
+.brand .tag{font-family:var(--mono);font-size:12px;color:var(--dim);letter-spacing:.12em;padding-left:10px;border-left:1px solid var(--stroke2)}
+.tb-actions{display:flex;gap:6px;padding:4px;border-radius:999px}
+.ic{width:36px;height:36px;border-radius:50%;border:0;background:transparent;display:grid;place-items:center;cursor:pointer;color:var(--dim);transition:background .25s var(--ease),color .25s var(--ease),transform .2s var(--ease)}
+.ic:hover{background:rgba(255,255,255,.1);color:var(--text)}
+.ic:active{transform:scale(.92)}
+.ic svg,.tool svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+
+/* views */
+.view{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:1;transform:none;transition:opacity .6s var(--ease),transform .7s var(--ease),visibility 0s}
+.view.is-hidden{opacity:0;transform:scale(1.015);visibility:hidden;transition:opacity .35s var(--ease),transform .45s var(--ease),visibility 0s linear .45s}
+.view>*{pointer-events:auto}
+
+/* menu */
+#v-menu{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,420px);align-items:end;gap:48px;padding-top:calc(env(safe-area-inset-top,0px) + 90px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 48px);padding-left:max(48px,env(safe-area-inset-left,0px));padding-right:max(48px,env(safe-area-inset-right,0px));box-sizing:border-box}
+#v-menu>.hero{pointer-events:none}
+.kicker{font-weight:600;font-size:15px;color:var(--gold);letter-spacing:-.005em}
+.hero h1{margin:6px 0 0;font-size:clamp(48px,7.4vw,104px);font-weight:700;letter-spacing:-.045em;line-height:1;background:linear-gradient(180deg,#ffffff 30%,#9a9aa3 100%);-webkit-background-clip:text;background-clip:text;color:transparent;text-wrap:balance}
+.hero .sub{margin:16px 0 0;max-width:30ch;font-size:clamp(18px,1.7vw,23px);font-weight:500;line-height:1.35;color:var(--dim);letter-spacing:-.01em}
+.menu-card{border-radius:28px;padding:20px;display:flex;flex-direction:column;gap:16px;max-height:calc(100vh - 150px);overflow-y:auto;box-sizing:border-box}
+@media (max-width:900px){
+  #v-menu{grid-template-columns:1fr;align-items:start;align-content:start;gap:24px;overflow-y:auto;pointer-events:auto;padding-top:calc(env(safe-area-inset-top,0px) + 84px);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(env(safe-area-inset-bottom,0px) + 24px)}
+  #v-menu>.hero{padding-top:min(34vh,280px)}
+  .menu-card{max-height:none;overflow:visible}
+}
+.seg{display:grid;grid-template-columns:1fr 1fr;padding:3px;border-radius:12px;background:rgba(255,255,255,.07);position:relative}
+.seg button{border:0;background:transparent;height:34px;border-radius:9px;font-weight:600;font-size:14px;color:var(--dim);cursor:pointer;position:relative;z-index:1;transition:color .3s var(--ease)}
+.seg button[aria-selected="true"]{color:var(--text)}
+.seg .thumb{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:9px;background:rgba(255,255,255,.14);box-shadow:0 2px 8px rgba(0,0,0,.35);transition:transform .45s var(--spring)}
+.seg[data-tab="local"] .thumb{transform:translateX(100%)}
+.pane{display:flex;flex-direction:column;gap:14px;animation:fadeUp .5s var(--ease)}
+.field{display:flex;flex-direction:column;gap:6px}
+.lbl{font-size:13px;font-weight:600;color:var(--dim)}
+.hint{font-size:13px;color:var(--faint);line-height:1.4}
+input,select{font:inherit;font-size:16px;color:var(--text);background:rgba(255,255,255,.06);border:1px solid var(--stroke);border-radius:12px;padding:11px 13px;width:100%;min-width:0;box-sizing:border-box;transition:border-color .25s var(--ease),background .25s var(--ease)}
+input:focus,select:focus{outline:none;border-color:var(--holo);background:rgba(90,184,255,.08)}
+button:focus-visible,.ship:focus-visible{outline:2px solid var(--holo);outline-offset:2px}
+.ships{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.ship{display:grid;place-items:center;aspect-ratio:1;border-radius:14px;border:1px solid var(--stroke);background:rgba(255,255,255,.04);color:var(--faint);cursor:pointer;transition:all .35s var(--ease)}
+.ship:hover{color:var(--dim);background:rgba(255,255,255,.08)}
+.ship[aria-pressed="true"]{color:var(--gold);border-color:rgba(255,195,90,.6);background:rgba(255,195,90,.1);transform:scale(1.04)}
+.ship-ic{width:26px;height:26px;fill:currentColor}
+.shipname{font-size:13px;color:var(--dim);margin-top:-6px}
+.row{display:flex;gap:8px;align-items:center}
+.row>input{flex:1}
+.pill{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:44px;padding:0 22px;border-radius:999px;border:0;background:rgba(255,255,255,.1);color:var(--text);font-weight:600;font-size:15px;letter-spacing:-.01em;cursor:pointer;white-space:nowrap;transition:transform .25s var(--ease),background .25s var(--ease),box-shadow .3s var(--ease),opacity .3s var(--ease)}
+.pill:hover:not(:disabled){background:rgba(255,255,255,.16)}
+.pill:active:not(:disabled){transform:scale(.97)}
+.pill:disabled{opacity:.38;cursor:default}
+.pill.primary{background:linear-gradient(180deg,#6cc4ff,#2f8fff);color:#fff;box-shadow:0 10px 28px -10px rgba(47,143,255,.9)}
+.pill.primary:hover:not(:disabled){background:linear-gradient(180deg,#80ccff,#3d98ff)}
+.pill.gold{background:linear-gradient(180deg,#ffd27a,#ffad33);color:#1a1100;box-shadow:0 10px 28px -10px rgba(255,173,51,.9)}
+.pill.gold:hover:not(:disabled){background:linear-gradient(180deg,#ffdb8f,#ffb84a)}
+.pill.danger{background:rgba(255,90,95,.16);color:#ff9a9d}
+.pill.danger:hover:not(:disabled){background:rgba(255,90,95,.26)}
+.pill.small{height:34px;padding:0 15px;font-size:13px}
+.pill.wide{width:100%}
+.textbtn{background:none;border:0;color:var(--holo);font-weight:500;cursor:pointer;padding:2px 0;align-self:flex-start}
+.textbtn:hover{text-decoration:underline;text-underline-offset:3px}
+.lobbies{display:flex;flex-direction:column;gap:6px}
+.lob{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05);animation:fadeUp .45s var(--ease)}
+.lob b{font-family:var(--mono);font-weight:500;letter-spacing:.2em;color:var(--holo)}
+.lob span{color:var(--dim);font-size:13px}
+.divider{height:1px;background:var(--stroke)}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper output{min-width:24px;text-align:center;font-weight:600;font-variant-numeric:tabular-nums}
+.stepper .ic{background:rgba(255,255,255,.08);width:32px;height:32px;color:var(--text);font-size:18px;line-height:1}
+.crew{display:flex;flex-direction:column;gap:8px}
+.crew .row select{flex:0 0 132px}
+.cdot{width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 12px var(--c);flex:none}
+
+/* lobby + loading */
+#v-lobby,#v-loading{display:grid;place-items:center;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.center-card{width:min(440px,100%);border-radius:28px;padding:24px;display:flex;flex-direction:column;gap:16px;box-sizing:border-box;max-height:calc(100vh - 120px);overflow-y:auto}
+.code{font-family:var(--mono);font-size:56px;letter-spacing:.28em;line-height:1;font-weight:500;color:#fff;text-shadow:0 0 30px rgba(90,184,255,.6)}
+.crewlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.crewlist li{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05);animation:fadeUp .45s var(--ease)}
+.crewlist .ship-ic{color:var(--c);width:22px;height:22px}
+.crewlist .who{flex:1;min-width:0;font-weight:600}
+.crewlist small{color:var(--dim);font-weight:500}
+.spinner{width:28px;height:28px;border-radius:50%;border:2.5px solid rgba(255,255,255,.15);border-top-color:var(--holo);animation:spin .9s linear infinite}
+
+/* game */
+#players{position:absolute;top:calc(env(safe-area-inset-top,0px) + 66px);left:max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px;width:264px;max-height:calc(100vh - 100px);overflow-y:auto;padding:0 12px 12px 0;box-sizing:border-box;scrollbar-width:none}
+#players::-webkit-scrollbar{display:none}
+.chip{display:grid;grid-template-columns:36px minmax(0,1fr) auto;align-items:center;gap:0 10px;padding:9px 12px 9px 9px;border-radius:18px;transition:transform .5s var(--ease),background .5s var(--ease),opacity .5s var(--ease),box-shadow .5s var(--ease);animation:fadeUp .6s var(--ease) both}
+.chip-ic{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);transition:box-shadow .5s var(--ease)}
+.chip-ic .ship-ic{width:20px;height:20px}
+.chip-nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.01em}
+.chip-meta{font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chip-money{font-family:var(--mono);font-size:14px;font-variant-numeric:tabular-nums;transition:color .4s var(--ease)}
+.chip.active{background:var(--glass-strong);transform:translateX(6px);box-shadow:0 20px 60px -20px rgba(0,0,0,.7),inset 0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent)}
+.chip.active .chip-ic{box-shadow:0 0 0 2px var(--c),0 0 22px var(--c)}
+.chip.out{opacity:.4}
+.chip.up .chip-money{color:var(--green)}
+.chip.down .chip-money{color:var(--red)}
+.chip-money.neg{color:var(--red)}
+.chip-props{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.chip-props:empty{display:none}
+.ptag{display:inline-flex;align-items:center;gap:5px;max-width:100%;font-size:11px;font-weight:600;line-height:1.2;padding:3px 8px 3px 6px;border-radius:999px;border:0;background:color-mix(in srgb,var(--g) 18%,transparent);color:var(--text);cursor:pointer;animation:fadeUp .5s var(--ease);transition:background .25s var(--ease),transform .2s var(--ease)}
+.ptag:hover{background:color-mix(in srgb,var(--g) 32%,transparent)}
+.ptag:active{transform:scale(.95)}
+.ptag i{width:6px;height:6px;border-radius:50%;flex:none;background:var(--g);box-shadow:0 0 6px var(--g)}
+.ptag .l,.ptag .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ptag .s{display:none}
+.ptag.full{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--g) 75%,transparent)}
+.ptag.mort{opacity:.45;text-decoration:line-through}
+.ptag b{font-weight:700;color:var(--green)}
+.ptag b.cit{color:var(--gold)}
+#dock{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);width:min(640px,calc(100% - 32px));border-radius:28px;padding:16px;box-sizing:border-box;transition:transform .6s var(--ease)}
+#dockInner{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px 16px;align-items:center}
+#dockInner.swap{animation:fadeUp .5s var(--ease)}
+.d-title{font-size:19px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.d-title .c{color:var(--c)}
+.d-sub{font-size:14px;color:var(--dim);margin-top:2px}
+.d-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.d-wide{grid-column:1/-1}
+.deedline{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;background:rgba(255,255,255,.05)}
+.deedline .sw{width:10px;align-self:stretch;border-radius:4px;background:var(--g);box-shadow:0 0 14px var(--g)}
+.deedline .nm{font-weight:600}
+.deedline .pr{margin-left:auto;font-family:var(--mono);color:var(--gold)}
+.d-tools{grid-column:1/-1;display:flex;gap:6px;border-top:1px solid var(--stroke);padding-top:12px;margin-top:2px}
+.tool{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;height:38px;border-radius:12px;border:0;background:transparent;color:var(--dim);font-size:13px;font-weight:600;cursor:pointer;transition:background .25s var(--ease),color .25s var(--ease)}
+.tool:hover:not(:disabled){background:rgba(255,255,255,.08);color:var(--text)}
+.tool:disabled{opacity:.35;cursor:default}
+#dock.busy .d-actions .pill{opacity:.45;pointer-events:none}
+#ticker{position:absolute;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 18px);width:280px;border-radius:20px;padding:12px 14px;cursor:pointer;text-align:left;border:1px solid var(--stroke);color:var(--text)}
+#ticker .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+#tickerText{font-size:13px;line-height:1.4;margin-top:4px;color:var(--dim);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+#tickerText.swap{animation:fadeUp .45s var(--ease)}
+@media (max-width:1240px){ #ticker{display:none} }
+@media (max-width:760px){
+  #players{top:calc(env(safe-area-inset-top,0px) + 62px);left:0;right:0;width:auto;flex-direction:row;overflow-x:auto;padding:2px max(16px,env(safe-area-inset-left,0px)) 10px;scrollbar-width:none;box-sizing:border-box}
+  #players::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;width:168px;grid-template-columns:30px minmax(0,1fr);padding:7px 12px 7px 7px}
+  .chip-ic{width:30px;height:30px;grid-row:span 2}
+  .chip-money{grid-column:2;font-size:13px}
+  .chip-meta{display:none}
+  #players{align-items:flex-start;max-height:none}
+  .ptag .l{display:none}
+  .ptag .s{display:inline}
+  .chip.active{transform:translateY(2px)}
+  #dock{bottom:calc(env(safe-area-inset-bottom,0px) + 10px);width:calc(100% - 20px);padding:14px;border-radius:24px}
+  #dockInner{grid-template-columns:1fr}
+  .d-actions{justify-content:stretch}
+  .d-actions .pill{flex:1}
+  .brand .tag{display:none}
+}
+
+/* toasts, card, modal */
+#toasts{position:fixed;top:calc(env(safe-area-inset-top,0px) + 66px);left:50%;transform:translateX(-50%);z-index:30;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:min(92%,420px)}
+.toast{padding:11px 18px;border-radius:999px;font-size:14px;font-weight:500;text-align:center;animation:toastIn .5s var(--spring)}
+.toast.good{color:#fff;box-shadow:0 20px 60px -20px rgba(0,0,0,.7),inset 0 0 0 1px rgba(90,184,255,.5)}
+.toast.bye{animation:toastOut .4s var(--ease) forwards}
+#cardPop{position:fixed;inset:0;z-index:25;display:grid;place-items:center;padding:16px;cursor:pointer;pointer-events:auto}
+.holo{width:min(360px,100%);border-radius:26px;padding:22px 24px;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;animation:cardIn .6s var(--spring)}
+.holo.bye{animation:cardOut .4s var(--ease) forwards}
+.holo .deck{display:flex;align-items:center;gap:10px;font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--holo)}
+.holo.smug .deck{color:var(--gold)}
+.holo .deck i{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
+.holo p{margin:0;font-size:21px;font-weight:600;letter-spacing:-.02em;line-height:1.3}
+.holo small{color:var(--faint)}
+#modal{position:fixed;inset:0;z-index:40;display:grid;place-items:center;padding:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));background:rgba(0,0,0,.45);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:opacity .4s var(--ease),visibility 0s}
+#modal.is-hidden{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s var(--ease),visibility 0s linear .3s}
+.sheet{width:min(560px,100%);max-height:calc(100vh - 32px);overflow-y:auto;border-radius:28px;padding:22px;display:flex;flex-direction:column;gap:14px;box-sizing:border-box;background:var(--glass-strong);transform:none;opacity:1;transition:transform .55s var(--spring),opacity .4s var(--ease)}
+#modal.is-hidden .sheet{transform:translateY(24px) scale(.97);opacity:0}
+@media (max-width:600px){ #modal{place-items:end center;padding:0} .sheet{width:100%;border-radius:28px 28px 0 0;max-height:88vh;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 22px)} #modal.is-hidden .sheet{transform:translateY(100%)} }
+.sheet h2{margin:0;font-size:24px;font-weight:700;letter-spacing:-.03em}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
+.deed{border-radius:20px;overflow:hidden;background:rgba(255,255,255,.04);border:1px solid var(--stroke)}
+.deed .band{padding:16px 18px;background:linear-gradient(135deg,color-mix(in srgb,var(--g) 55%,#000) 0%,color-mix(in srgb,var(--g) 18%,#000) 100%);border-bottom:1px solid var(--stroke)}
+.deed .band small{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.75)}
+.deed .band h3{margin:2px 0 0;font-size:24px;font-weight:700;letter-spacing:-.03em}
+.deed table{width:100%;border-collapse:collapse;font-size:14px}
+.deed td{padding:9px 18px;border-top:1px solid var(--stroke)}
+.deed tr:first-child td{border-top:0}
+.deed td:last-child{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.deed tr.on td{color:var(--holo)}
+.deed p{margin:0;padding:16px 18px;color:var(--dim)}
+.mlist{display:flex;flex-direction:column;gap:8px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.05)}
+.mrow .nm{font-weight:600;display:flex;align-items:center;gap:8px}
+.mrow .sub{font-size:12px;color:var(--dim)}
+.mrow .btns{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+@media (max-width:520px){ .mrow{grid-template-columns:1fr} .mrow .btns{justify-content:flex-start} }
+.lvl{display:inline-flex;gap:3px;margin-left:4px}
+.lvl i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.18)}
+.lvl i.on{background:var(--green);box-shadow:0 0 8px var(--green)}
+.lvl.cit i{background:var(--gold);box-shadow:0 0 8px var(--gold)}
+.tradecols{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){ .tradecols{grid-template-columns:1fr} }
+.tcol{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:18px;background:rgba(255,255,255,.04)}
+.checks{display:flex;flex-direction:column;gap:2px;max-height:200px;overflow-y:auto}
+.checks label{display:flex;gap:10px;align-items:center;font-size:14px;padding:7px 8px;border-radius:10px;cursor:pointer}
+.checks label:hover{background:rgba(255,255,255,.05)}
+.checks input{width:18px;height:18px;accent-color:var(--holo);flex:none}
+.trade-sum{display:flex;flex-direction:column;gap:4px;font-size:14px;color:var(--dim)}
+.trade-sum b{color:var(--text)}
+.loglist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.loglist li{font-size:14px;color:var(--dim);padding:8px 0;border-top:1px solid var(--stroke)}
+.loglist li:first-child{color:var(--text);border-top:0}
+.rules{display:flex;flex-direction:column;gap:12px;font-size:15px}
+.rules p{margin:0;color:var(--dim)}
+.rules dl{margin:0;display:grid;gap:10px}
+.rules dt{font-weight:600}
+.rules dd{margin:2px 0 0;color:var(--dim)}
+.winner{font-size:28px;font-weight:700;letter-spacing:-.03em;background:linear-gradient(180deg,#ffe2a3,#ffad33);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+#volPop{position:absolute;top:calc(env(safe-area-inset-top,0px) + 62px);right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;gap:10px;width:268px;max-width:calc(100vw - 32px);padding:6px 14px 6px 6px;border-radius:999px;box-sizing:border-box;transform-origin:top right;animation:toastIn .45s var(--spring)}
+#volPop .ic{color:var(--text);flex:none}
+#volVal{font-family:var(--mono);font-size:12px;color:var(--dim);min-width:30px;text-align:right;font-variant-numeric:tabular-nums}
+#volRange{-webkit-appearance:none;appearance:none;flex:1;width:auto;min-width:0;height:6px;padding:0;margin:0;border:0;border-radius:999px;cursor:pointer;background:linear-gradient(90deg,#fff 0,#fff var(--p,70%),rgba(255,255,255,.18) var(--p,70%))}
+#volRange::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#fff;border:0;box-shadow:0 2px 10px rgba(0,0,0,.55);transition:transform .2s var(--ease)}
+#volRange:active::-webkit-slider-thumb{transform:scale(1.12)}
+#volRange::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#fff;border:0;box-shadow:0 2px 10px rgba(0,0,0,.55)}
+#volRange:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(90,184,255,.55)}
+#wheel{position:fixed;inset:0;z-index:26;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.35)}
+.wheel-card{width:min(380px,100%);border-radius:32px;padding:22px 22px 18px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;box-sizing:border-box;background:var(--glass-strong);animation:cardIn .6s var(--spring)}
+.wheel-card.bye{animation:cardOut .4s var(--ease) forwards}
+.wheel-card h3{margin:0;font-size:20px;font-weight:700;letter-spacing:-.02em;text-wrap:balance}
+.wheel-wrap{position:relative;width:min(300px,72vw);max-width:100%;aspect-ratio:1;margin-top:10px}
+.wheel-svg{display:block;width:100%;height:100%;transform-origin:50% 50%;font-family:var(--hud);filter:drop-shadow(0 0 26px rgba(255,195,90,.2))}
+.wheel-ptr{position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:13px solid transparent;border-right:13px solid transparent;border-top:24px solid var(--gold);filter:drop-shadow(0 0 8px var(--gold))}
+.wseg.win{filter:brightness(1.8)}
+.wseg.win path{stroke-opacity:1;stroke-width:2.5}
+.wheel-res{min-height:42px;font-size:32px;font-weight:800;letter-spacing:-.03em;color:var(--faint)}
+.wheel-res.bad,.wheel-res.good,.wheel-res.zero,.wheel-res.jackpot{animation:fadeUp .45s var(--ease)}
+.wheel-res.bad{color:var(--red)} .wheel-res.good{color:var(--green)} .wheel-res.zero{color:var(--text)} .wheel-res.jackpot{color:var(--gold)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes toastIn{from{opacity:0;transform:translateY(-10px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes toastOut{to{opacity:0;transform:translateY(-8px) scale(.97)}}
+@keyframes cardIn{from{opacity:0;transform:translateY(30px) scale(.92) rotateX(18deg)}to{opacity:1;transform:none}}
+@keyframes cardOut{to{opacity:0;transform:translateY(-16px) scale(.96)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="c" aria-label="3D-Spielbrett"></canvas><div id="vignette"></div></div>
+
+<header id="topbar">
+  <div class="brand glass"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="2.2"/></svg><span>Sternenbarone</span><span class="tag" id="gameTag" hidden></span></div>
+  <div class="tb-actions glass">
+    <button class="ic" id="btnSound" type="button" aria-label="Lautstärke" aria-expanded="false" aria-controls="volPop"></button>
+    <button class="ic" id="btnCam" type="button" aria-label="Kameraansicht wechseln" hidden></button>
+    <button class="ic" id="btnRules" type="button" aria-label="Spielregeln"></button>
+    <button class="ic" id="btnExit" type="button" aria-label="Zum Hauptmenü" hidden></button>
+  </div>
+  <div id="volPop" class="glass" hidden><button class="ic" id="volMute" type="button" aria-label="Stumm schalten"></button><input type="range" id="volRange" min="0" max="100" step="1" aria-label="Lautstärke"><span id="volVal"></span></div>
+</header>
+
+<section id="v-menu" class="view"></section>
+<section id="v-loading" class="view is-hidden"><div class="center-card glass" style="align-items:center;text-align:center"><div class="spinner"></div><div><div style="font-weight:600;font-size:17px">Verbinde mit dem Hangar</div><div class="hint" id="loadingHint">Der Spielstand wird geladen.</div></div><button class="pill small" data-act="menu">Abbrechen</button></div></section>
+<section id="v-lobby" class="view is-hidden"><div class="center-card glass" id="lobbyCard"></div></section>
+<section id="v-game" class="view is-hidden">
+  <div id="players"></div>
+  <div id="dock" class="glass"><div id="dockInner"></div></div>
+  <button id="ticker" class="glass" type="button" data-act="log"><div class="lbl">Logbuch</div><div id="tickerText"></div></button>
+</section>
+
+<div id="toasts" aria-live="polite"></div>
+<div id="cardPop" hidden></div>
+<div id="wheel" hidden></div>
+<div id="modal" class="is-hidden" aria-hidden="true"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+'use strict';
+/* ============================================================ helpers */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = n => (n < 0 ? '−' : '') + Math.abs(Math.round(n)).toLocaleString('de-DE') + ' Cr';
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = ms => new Promise(r => setTimeout(r, REDUCED ? Math.min(ms,80) : ms));
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const damp = (a,b,l,dt) => a + (b-a) * (1 - Math.exp(-l*dt));
+const angDiff = (a,b) => { let d=a-b; while (d>Math.PI) d-=Math.PI*2; while (d<-Math.PI) d+=Math.PI*2; return d; };
+const EASE = {
+  outCubic: t => 1-Math.pow(1-t,3), inCubic: t => t*t*t,
+  inOutSine: t => -(Math.cos(Math.PI*t)-1)/2,
+  inOutCubic: t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2,
+};
+function rnd6(){ const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % 6 + 1; }
+
+/* ============================================================ board data */
+const GROUPS = [
+  {name:'Randwelten',    color:'#d07a45', house:50},
+  {name:'Eisgürtel',     color:'#8fdcff', house:50},
+  {name:'Sporen-Sektor', color:'#e061b8', house:100},
+  {name:'Dünenmeer',     color:'#ffa83f', house:100},
+  {name:'Glutzone',      color:'#ff4d42', house:150},
+  {name:'Wolkenreich',   color:'#ffe066', house:150},
+  {name:'Lebensgürtel',  color:'#45dc86', house:200},
+  {name:'Kernwelten',    color:'#6b7cff', house:200},
+];
+const P = (name,g,price,rent) => ({t:'prop',name,g,price,rent});
+const SPACES = [
+  {t:'start', name:'Raumhafen Nova'},
+  P('Staubmond Kerr',0,60,[2,10,30,90,160,250]),
+  {t:'card', deck:'funk', name:'Holo-Funk'},
+  P('Rostfels Ondo',0,60,[4,20,60,180,320,450]),
+  {t:'tax', name:'Andockgebühr', amount:200},
+  {t:'gate', name:'Sprungtor Nord', price:200},
+  P('Eiswelt Hjalm',1,100,[6,30,90,270,400,550]),
+  {t:'card', deck:'schmuggel', name:'Schmugglerfunk'},
+  P('Frostring Veil',1,100,[6,30,90,270,400,550]),
+  P('Glimmernebel Tsu',1,120,[8,40,100,300,450,600]),
+  {t:'jail', name:'Arrestbake'},
+  P('Sumpfwelt Mire',2,140,[10,50,150,450,625,750]),
+  {t:'util', name:'Fusionsreaktor', price:150},
+  P('Moosmond Venn',2,140,[10,50,150,450,625,750]),
+  P('Sporenwelt Ilka',2,160,[12,60,180,500,700,900]),
+  {t:'gate', name:'Sprungtor Ost', price:200},
+  P('Wüstenwelt Saharr',3,180,[14,70,200,550,750,950]),
+  {t:'card', deck:'funk', name:'Holo-Funk'},
+  P('Dünenstadt Qadim',3,180,[14,70,200,550,750,950]),
+  P('Glutkrater Oruk',3,200,[16,80,220,600,800,1000]),
+  {t:'free', name:'Nebel-Rastplatz'},
+  P('Vulkanwelt Pyros',4,220,[18,90,250,700,875,1050]),
+  {t:'card', deck:'schmuggel', name:'Schmugglerfunk'},
+  P('Ascheturm Kaldor',4,220,[18,90,250,700,875,1050]),
+  P('Lavameer Ignis',4,240,[20,100,300,750,925,1100]),
+  {t:'gate', name:'Sprungtor Süd', price:200},
+  P('Wolkenstadt Aurel',5,260,[22,110,330,800,975,1150]),
+  P('Gasriese Brannoc',5,260,[22,110,330,800,975,1150]),
+  {t:'util', name:'Kristallmine', price:150},
+  P('Sturmkrone Zephra',5,280,[24,120,360,850,1025,1200]),
+  {t:'tojail', name:'Abfangkreuzer'},
+  P('Dschungelmond Verdan',6,300,[26,130,390,900,1100,1275]),
+  P('Ozeanwelt Thalass',6,300,[26,130,390,900,1100,1275]),
+  {t:'card', deck:'funk', name:'Holo-Funk'},
+  P('Riffstadt Coralis',6,320,[28,150,450,1000,1200,1400]),
+  {t:'gate', name:'Sprungtor West', price:200},
+  {t:'card', deck:'schmuggel', name:'Schmugglerfunk'},
+  P('Kernwelt Lumen',7,350,[35,175,500,1100,1300,1500]),
+  {t:'tax', name:'Gildensteuer', amount:100},
+  P('Thronwelt Solaris',7,400,[50,200,600,1400,1700,2000]),
+];
+const GATES = [5,15,25,35], UTILS = [12,28];
+const BUYABLE = i => ['prop','gate','util'].includes(SPACES[i].t);
+const GROUP_IDX = GROUPS.map((_,g) => SPACES.map((s,i) => (s.t==='prop' && s.g===g) ? i : -1).filter(i => i >= 0));
+const spaceColor = i => { const s = SPACES[i]; return s.t==='prop' ? GROUPS[s.g].color : s.t==='gate' ? '#a9c4ee' : s.t==='util' ? '#7ef0d0' : '#5ab8ff'; };
+const STROKE = 'style="fill:none;stroke:currentColor;stroke-width:3"';
+const SHIPS = [
+  {name:'Pfeiljäger',  svg:'<path d="M20 3l3 13 13 9v4l-13-4-1 9h-4l-1-9-13 4v-4l13-9z"/>'},
+  {name:'Ringgleiter', svg:`<circle cx="20" cy="20" r="14" ${STROKE}/><circle cx="20" cy="20" r="7"/>`},
+  {name:'Frachter',    svg:'<rect x="13" y="5" width="14" height="27" rx="3"/><rect x="5" y="19" width="6" height="15" rx="2"/><rect x="29" y="19" width="6" height="15" rx="2"/>'},
+  {name:'Korvette',    svg:'<rect x="9" y="4" width="22" height="6" rx="2"/><rect x="17" y="8" width="6" height="22"/><rect x="12" y="28" width="16" height="9" rx="2"/>'},
+  {name:'Kristall',    svg:`<path d="M20 4l9 16-9 16-9-16z"/><ellipse cx="20" cy="20" rx="17" ry="5" ${STROKE}/>`},
+  {name:'Shuttle',     svg:'<rect x="15" y="4" width="10" height="27" rx="5"/><path d="M15 17L4 29v3l11-5zM25 17l11 12v3l-11-5z"/>'},
+];
+const COLORS = ['#ff5a6a','#4cc3ff','#ffd04a','#4fe08a','#b98bff','#ff9a4a'];
+const shipSvg = k => `<svg class="ship-ic" viewBox="0 0 40 40" aria-hidden="true">${SHIPS[k]?.svg||''}</svg>`;
+const ICON = {
+  sound:'<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>',
+  mute:'<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>',
+  cam:'<svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>',
+  top:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><rect x="8.5" y="8.5" width="7" height="7" rx="1.5"/></svg>',
+  help:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.4"/><path d="M12 17.2v.1"/></svg>',
+  exit:'<svg viewBox="0 0 24 24"><path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14"/><path d="M10 8l-4 4 4 4M6 12h10"/></svg>',
+  grid:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><ellipse cx="12" cy="12" rx="10" ry="3.2" transform="rotate(-18 12 12)"/></svg>',
+  swap:'<svg viewBox="0 0 24 24"><path d="M7 7h12l-3.5-3.5M17 17H5l3.5 3.5"/></svg>',
+  list:'<svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+};
+
+/* ============================================================ cards */
+function nextGate(pos){ for (let k=1;k<=40;k++){ const j=(pos+k)%40; if (GATES.includes(j)) return j; } return 5; }
+function buildingCounts(S,id){ let h=0,c=0; for (const i in S.props){ const pr=S.props[i]; if (pr.owner!==id) continue; if (pr.houses===5) c++; else h+=pr.houses; } return [h,c]; }
+const CARDS = {
+  schmuggel: [
+    {x:'Hyperraumsprung zum Raumhafen Nova. Kassiere 200 Cr.', f:(S,id)=>moveTo(S,id,0)},
+    {x:'Kurs auf die Thronwelt Solaris.', f:(S,id)=>moveTo(S,id,39)},
+    {x:'Kurs auf die Vulkanwelt Pyros. Passierst du den Raumhafen, kassiere 200 Cr.', f:(S,id)=>moveTo(S,id,21)},
+    {x:'Fliege zum nächsten Sprungtor. Gehört es jemandem, zahlst du die doppelte Gebühr.', f:(S,id)=>moveTo(S,id,nextGate(S.players[id].pos),{mult:2})},
+    {x:'Triebwerksfehler! Drei Felder zurück.', f:(S,id)=>moveBack(S,id,3)},
+    {x:'Vom Abfangkreuzer gestellt. Direkt in die Arrestbake, ohne über den Raumhafen zu fliegen.', f:(S,id)=>toJail(S,id)},
+    {x:'Gefälschte Transpondercodes: Du kommst einmal kostenlos aus der Arrestbake.', f:(S,id)=>{S.players[id].jailCards++;}},
+    {x:'Erfolgreicher Schmuggellauf. Die Bank zahlt dir 150 Cr.', f:(S,id)=>credit(S,id,150)},
+    {x:'Raumgurt-Verstoß. Zahle 15 Cr.', f:(S,id)=>charge(S,id,15,null)},
+    {x:'Wartung deiner Flotte: 25 Cr je Außenposten, 100 Cr je Zitadelle.', f:(S,id)=>{const [h,c]=buildingCounts(S,id); const a=h*25+c*100; if(a) charge(S,id,a,null);}},
+    {x:'Du wirst zum Sektorsprecher gewählt. Zahle jedem Mitspieler 50 Cr.', f:(S,id)=>{for (const o of S.order) if (o!==id && !S.players[o].out) charge(S,id,50,o);}},
+    {x:'Kurs auf das Sprungtor Nord.', f:(S,id)=>moveTo(S,id,5)},
+    {x:'Ein Kontaktmann bietet dir eine Schmugglerwette an. Setz Credits aufs Glücksrad – oder lass es bleiben.', f:(S,id)=>cardBet(S,id)},
+    {x:'Glücksrad der Handelsgilde! Dreh und hoffe auf den Jackpot.', f:(S,id)=>cardGuildWheel(S,id)},
+    {x:'Treibstoffpreise explodieren! Zahle 10 % deiner Credits.', f:(S,id)=>cardFuel(S,id)},
+    {x:'Schwarzmarkt-Glücksrad: Dreh noch einmal, die Gilde schaut weg.', f:(S,id)=>cardGuildWheel(S,id)},
+  ],
+  funk: [
+    {x:'Rechenfehler der Galaktischen Bank zu deinen Gunsten. Kassiere 200 Cr.', f:(S,id)=>credit(S,id,200)},
+    {x:'Notreparatur am Hyperantrieb. Zahle 50 Cr.', f:(S,id)=>charge(S,id,50,null)},
+    {x:'Ein entfernter Onkel hinterlässt dir eine Asteroidenmine. Kassiere 100 Cr.', f:(S,id)=>credit(S,id,100)},
+    {x:'Jahrestag deiner Pilotenlizenz! Jeder Mitspieler schenkt dir 10 Cr.', f:(S,id)=>{for (const o of S.order){ if (o===id || S.players[o].out) continue; const a=Math.min(10,Math.max(0,S.players[o].money)); if (a) charge(S,o,a,id);} }},
+    {x:'Du verkaufst Wrackteile auf dem Schrottmarkt. Kassiere 45 Cr.', f:(S,id)=>credit(S,id,45)},
+    {x:'Die Zollkontrolle findet Schmuggelware. Ab in die Arrestbake.', f:(S,id)=>toJail(S,id)},
+    {x:'Ein Gefallen beim Hafenmeister: Du kommst einmal kostenlos aus der Arrestbake.', f:(S,id)=>{S.players[id].jailCards++;}},
+    {x:'Hyperraumsprung zum Raumhafen Nova. Kassiere 200 Cr.', f:(S,id)=>moveTo(S,id,0)},
+    {x:'Steuerrückerstattung der Handelsgilde. Kassiere 20 Cr.', f:(S,id)=>credit(S,id,20)},
+    {x:'Medizinische Versorgung nach einem Meteoritenschauer. Zahle 100 Cr.', f:(S,id)=>charge(S,id,100,null)},
+    {x:'Sieg beim Schwerkraft-Rennen. Kassiere 100 Cr.', f:(S,id)=>credit(S,id,100)},
+    {x:'Sensor-Upgrade: 40 Cr je Außenposten, 115 Cr je Zitadelle.', f:(S,id)=>{const [h,c]=buildingCounts(S,id); const a=h*40+c*115; if(a) charge(S,id,a,null);}},
+    {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deines Gesamtvermögens (Credits + Wert deiner Welten) du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
+    {x:'Fluggebühr der Raumfahrtbehörde: 25 Cr plus 15 Cr für jede Welt in deinem Besitz.', f:(S,id)=>cardFlightFee(S,id)},
+    {x:'Asteroidensturm über deinen Welten! Zahle 5 % ihres Kaufwerts für Reparaturen.', f:(S,id)=>cardStorm(S,id)},
+    {x:'Steuerprüfung der Handelsgilde: Der reichste Pilot zahlt 10 % seiner Credits an den ärmsten.', f:(S)=>cardAudit(S)},
+    {x:'Vermögensabgabe! Das Glücksrad entscheidet, wie viel Prozent deines Gesamtvermögens (Credits + Wert deiner Welten) du zahlst.', f:(S,id)=>cardWealthTax(S,id)},
+  ]
+};
+const round5 = n => Math.round(n/5)*5;
+function wealth(S,id){ let w=Math.max(0,S.players[id].money); for (const i in S.props){ const pr=S.props[i]; if (pr.owner!==id) continue; const sp=SPACES[i]; if (!pr.mort) w+=sp.price; if (sp.t==='prop') w+=pr.houses*GROUPS[sp.g].house; } return w; }
+function spin(S,id,title,segs){ const k=Math.floor(Math.random()*segs.length); emit(S,{t:'wheel',id,title,segs:segs.map(x=>({l:x.l,c:x.c})),k}); return segs[k]; }
+const WHEEL_TAX=[{l:'0 %',v:0,c:'zero'},{l:'5 %',v:5,c:'bad'},{l:'+5 %',v:-5,c:'good'},{l:'10 %',v:10,c:'bad'},{l:'2 %',v:2,c:'bad'},{l:'15 %',v:15,c:'bad'},{l:'8 %',v:8,c:'bad'},{l:'12 %',v:12,c:'bad'}];
+const WHEEL_GUILD=[{l:'+250',v:250,c:'good'},{l:'−100',v:-100,c:'bad'},{l:'+50',v:50,c:'good'},{l:'−200',v:-200,c:'bad'},{l:'+100',v:100,c:'good'},{l:'−50',v:-50,c:'bad'},{l:'Jackpot',v:500,c:'jackpot'},{l:'−300',v:-300,c:'bad'}];
+const WHEEL_BET=[{l:'0×',v:0,c:'bad'},{l:'2×',v:2,c:'good'},{l:'0×',v:0,c:'bad'},{l:'1×',v:1,c:'zero'},{l:'½×',v:.5,c:'bad'},{l:'3×',v:3,c:'jackpot'},{l:'1,5×',v:1.5,c:'good'},{l:'0×',v:0,c:'bad'}];
+const BET_STAKES=[50,100,250];
+function cardWealthTax(S,id){
+  const w=wealth(S,id), x=spin(S,id,'Vermögensabgabe',WHEEL_TAX), amt=round5(w*Math.abs(x.v)/100);
+  if (!x.v || !amt){ log(S,`Glück gehabt: ${nm(S,id)} zahlt keine Vermögensabgabe.`); return; }
+  if (x.v>0){ charge(S,id,amt,null); log(S,`Das Glücksrad zeigt ${x.v} %: ${nm(S,id)} zahlt ${amt} Cr Vermögensabgabe.`); }
+  else { credit(S,id,amt); log(S,`Rückerstattung! ${nm(S,id)} erhält 5 % des Vermögens: ${amt} Cr.`); }
+}
+function cardGuildWheel(S,id){
+  const x=spin(S,id,'Glücksrad der Handelsgilde',WHEEL_GUILD);
+  if (x.v>0){ credit(S,id,x.v); log(S,`${nm(S,id)} gewinnt am Glücksrad ${x.v} Cr${x.c==='jackpot'?' – Jackpot!':''}.`); }
+  else { charge(S,id,-x.v,null); log(S,`${nm(S,id)} verliert am Glücksrad ${-x.v} Cr.`); }
+}
+function cardFlightFee(S,id){ const n=Object.values(S.props).filter(pr=>pr.owner===id).length, a=25+n*15; charge(S,id,a,null); log(S,`${nm(S,id)} zahlt ${a} Cr Fluggebühr (${n} ${n===1?'Welt':'Welten'}).`); }
+function cardFuel(S,id){ const a=round5(Math.max(0,S.players[id].money)*0.1); if (a){ charge(S,id,a,null); log(S,`${nm(S,id)} zahlt ${a} Cr für Treibstoff.`); } }
+function cardStorm(S,id){ let v=0; for (const i in S.props){ const pr=S.props[i]; if (pr.owner===id && !pr.mort) v+=SPACES[i].price; } const a=round5(v*0.05); if (a){ charge(S,id,a,null); log(S,`${nm(S,id)} zahlt ${a} Cr Sturmreparaturen.`); } else log(S,`${nm(S,id)} hat keine Welten – der Sturm zieht vorbei.`); }
+function cardAudit(S){
+  const alive=S.order.filter(o=>!S.players[o].out); if (alive.length<2) return;
+  const sorted=alive.slice().sort((a,b)=>S.players[b].money-S.players[a].money), rich=sorted[0], poor=sorted[sorted.length-1];
+  const a=round5(Math.max(0,S.players[rich].money)*0.1);
+  if (rich===poor || !a || S.players[rich].money===S.players[poor].money) return;
+  charge(S,rich,a,poor); log(S,`Steuerprüfung: ${nm(S,rich)} zahlt ${a} Cr an ${nm(S,poor)}.`);
+}
+function cardBet(S,id){ S.phase='bet'; log(S,`${nm(S,id)} darf eine Schmugglerwette eingehen.`); }
+const DECK_NAME = {funk:'Holo-Funk', schmuggel:'Schmugglerfunk'};
+
+/* ============================================================ engine
+   Pure state changes. Every visible happening is also pushed to S.ev.list,
+   so all clients can replay it as animation. */
+const curId = S => S.order[S.turn];
+const nm = (S,id) => S.players[id]?.name || 'Unbekannt';
+function emit(S,e){ if (!S.ev) S.ev={seq:0,list:[]}; S.ev.list.push(e); }
+function log(S,m){ S.logN=(S.logN||0)+1; S.log.push({n:S.logN,m}); if (S.log.length>60) S.log.splice(0,S.log.length-60); }
+function credit(S,id,a){ S.players[id].money+=a; emit(S,{t:'gain',id,amt:a}); }
+function charge(S,id,a,to){ const p=S.players[id]; p.money-=a; if (to) S.players[to].money+=a; if (p.money<0) p.debtTo=to||null; emit(S,{t:'pay',from:id,to:to||null,amt:a}); }
+function newGameState(list, extra){
+  const S = {status:'playing',order:[],players:{},props:{},turn:0,phase:'roll',again:false,doubles:0,pendingBuy:null,lastRoll:null,trade:null,log:[],logN:0,rev:0,winner:null,round:1,ev:{seq:0,list:[]},...extra};
+  list.forEach((p,i) => { S.order.push(p.id); S.players[p.id] = {name:p.name,ship:p.ship,color:COLORS[i],pos:0,money:1500,jail:0,jailCards:0,out:false,debtTo:null}; });
+  SPACES.forEach((s,i) => { if (BUYABLE(i)) S.props[i] = {owner:null,houses:0,mort:false}; });
+  log(S, `Die Flotte startet am Raumhafen Nova. ${nm(S,S.order[0])} beginnt.`);
+  return S;
+}
+function moveBy(S,id,n,opt){
+  const p=S.players[id], from=p.pos, path=[];
+  for (let k=1;k<=n;k++) path.push((from+k)%40);
+  p.pos=(from+n)%40; emit(S,{t:'move',id,path});
+  if (from+n>=40){ credit(S,id,200); log(S,`${p.name} passiert den Raumhafen Nova und kassiert 200 Cr.`); }
+  land(S,id,opt);
+}
+function moveTo(S,id,target,opt){ moveBy(S,id,(target-S.players[id].pos+40)%40,opt); }
+function moveBack(S,id,n){
+  const p=S.players[id], from=p.pos, path=[];
+  for (let k=1;k<=n;k++) path.push((from-k+40)%40);
+  p.pos=(from-n+40)%40; emit(S,{t:'move',id,path}); land(S,id);
+}
+function toJail(S,id){
+  const p=S.players[id]; p.pos=10; p.jail=1; S.again=false; S.doubles=0;
+  emit(S,{t:'move',id,path:[10],jump:true});
+  log(S,`${p.name} sitzt in der Arrestbake.`);
+}
+function ownsGroup(S,id,g){ return GROUP_IDX[g].every(j => S.props[j].owner===id); }
+function calcRent(S,i,dice){
+  const sp=SPACES[i], pr=S.props[i], o=pr.owner;
+  if (sp.t==='prop'){ if (pr.houses>0) return sp.rent[pr.houses]; return ownsGroup(S,o,sp.g) ? sp.rent[0]*2 : sp.rent[0]; }
+  if (sp.t==='gate'){ const n=GATES.filter(j=>S.props[j].owner===o).length; return 25*2**(n-1); }
+  if (sp.t==='util'){ const n=UTILS.filter(j=>S.props[j].owner===o).length; return dice*(n===2?10:4); }
+  return 0;
+}
+function land(S,id,opt={}){
+  const p=S.players[id], i=p.pos, sp=SPACES[i];
+  switch (sp.t){
+    case 'prop': case 'gate': case 'util': {
+      const pr=S.props[i];
+      if (!pr.owner){ S.phase='buy'; S.pendingBuy=i; return; }
+      if (pr.owner===id) return;
+      if (pr.mort){ log(S,`${sp.name} ist verpfändet – keine Landegebühr.`); return; }
+      if (S.players[pr.owner].out) return;
+      let rent = calcRent(S,i,S.lastRoll ? S.lastRoll.d[0]+S.lastRoll.d[1] : 7);
+      if (opt && opt.mult) rent *= opt.mult;
+      charge(S,id,rent,pr.owner);
+      log(S,`${p.name} zahlt ${rent} Cr Landegebühr an ${nm(S,pr.owner)} (${sp.name}).`);
+      return;
+    }
+    case 'tax': charge(S,id,sp.amount,null); log(S,`${p.name} zahlt ${sp.amount} Cr ${sp.name}.`); return;
+    case 'card': drawCard(S,id,sp.deck); return;
+    case 'tojail': log(S,`Ein Abfangkreuzer stellt ${p.name}!`); toJail(S,id); return;
+    case 'free': log(S,`${p.name} legt eine Pause am Nebel-Rastplatz ein.`); return;
+    case 'jail': if (!p.jail) log(S,`${p.name} besucht die Arrestbake nur.`); return;
+  }
+}
+function drawCard(S,id,deck){
+  const list=CARDS[deck], k=Math.floor(Math.random()*list.length);
+  emit(S,{t:'card',deck,k,who:id});
+  log(S,`${nm(S,id)} empfängt ${DECK_NAME[deck]}: „${list[k].x}“`);
+  list[k].f(S,id);
+}
+function settle(S){ const p=S.players[curId(S)]; if (p.jail>0) S.again=false; if (S.phase!=='buy' && S.phase!=='bet') S.phase = S.again ? 'roll' : 'end'; }
+function actRoll(S){
+  if (S.status!=='playing' || S.phase!=='roll' || S.trade) return false;
+  const id=curId(S), p=S.players[id];
+  if (p.money<0) return false;
+  const a=rnd6(), b=rnd6(), dbl=a===b;
+  S.lastRoll={d:[a,b],seq:(S.lastRoll?.seq||0)+1,by:id};
+  emit(S,{t:'dice',d:[a,b],id});
+  S.phase='end'; S.again=false; S.pendingBuy=null;
+  if (p.jail>0){
+    if (dbl){ p.jail=0; log(S,`${p.name} würfelt einen Pasch (${a}+${b}) und entkommt der Arrestbake.`); moveBy(S,id,a+b); }
+    else if (p.jail>=3){ charge(S,id,50,null); p.jail=0; log(S,`${p.name} würfelt ${a}+${b} und zahlt nach drei Runden 50 Cr Kaution.`); moveBy(S,id,a+b); }
+    else { p.jail++; log(S,`${p.name} würfelt ${a}+${b} – kein Pasch, bleibt in der Arrestbake.`); }
+    settle(S); return;
+  }
+  log(S,`${p.name} würfelt ${a}+${b}${dbl?' – Pasch!':''}`);
+  if (dbl){
+    S.doubles=(S.doubles||0)+1;
+    if (S.doubles>=3){ log(S,'Drei Pasch in Folge – der Hyperantrieb überhitzt!'); toJail(S,id); settle(S); return; }
+    S.again=true;
+  }
+  moveBy(S,id,a+b); settle(S);
+}
+function actBuy(S){
+  if (S.phase!=='buy') return false;
+  const id=curId(S), i=S.pendingBuy, sp=SPACES[i], p=S.players[id];
+  if (p.money<sp.price) return false;
+  p.money-=sp.price; S.props[i].owner=id; S.pendingBuy=null; S.phase='x';
+  emit(S,{t:'buy',id,i,price:sp.price});
+  log(S,`${p.name} kauft ${sp.name} für ${sp.price} Cr.`); settle(S);
+}
+function actBet(S,stake){
+  if (S.phase!=='bet') return false;
+  const id=curId(S), p=S.players[id];
+  if (stake>0){
+    if (!BET_STAKES.includes(stake) || p.money<stake) return false;
+    charge(S,id,stake,null);
+    const x=spin(S,id,`Schmugglerwette · Einsatz ${stake} Cr`,WHEEL_BET), win=Math.round(stake*x.v);
+    if (win>0) credit(S,id,win);
+    log(S, win>stake ? `${p.name} gewinnt die Wette (${x.l}) und bekommt ${win} Cr!` : win===stake ? `${p.name} bekommt den Einsatz zurück.` : win>0 ? `${p.name} rettet ${win} von ${stake} Cr.` : `${p.name} verliert den Einsatz von ${stake} Cr.`);
+  } else log(S,`${p.name} lässt die Finger von der Wette.`);
+  S.phase='x'; settle(S);
+}
+function actPass(S){
+  if (S.phase!=='buy') return false;
+  log(S,`${nm(S,curId(S))} verzichtet auf ${SPACES[S.pendingBuy].name}.`);
+  S.pendingBuy=null; S.phase='x'; settle(S);
+}
+function actPayJail(S){
+  const id=curId(S), p=S.players[id];
+  if (S.phase!=='roll' || !p.jail || p.money<50) return false;
+  charge(S,id,50,null); p.jail=0; log(S,`${p.name} zahlt 50 Cr Kaution und ist frei.`);
+}
+function actJailCard(S){
+  const id=curId(S), p=S.players[id];
+  if (S.phase!=='roll' || !p.jail || p.jailCards<1) return false;
+  p.jailCards--; p.jail=0; emit(S,{t:'free',id}); log(S,`${p.name} nutzt eine Freikarte und verlässt die Arrestbake.`);
+}
+function nextTurn(S){
+  S.doubles=0; S.again=false; S.pendingBuy=null; S.trade=null;
+  let t=S.turn;
+  for (let k=0;k<S.order.length;k++){ t=(t+1)%S.order.length; if (!S.players[S.order[t]].out) break; }
+  if (t<=S.turn) S.round=(S.round||1)+1;
+  S.turn=t; S.phase='roll';
+  emit(S,{t:'turn',id:curId(S)});
+  log(S,`${nm(S,curId(S))} ist am Zug.`);
+}
+function actEnd(S){ const id=curId(S); if (S.phase!=='end' || S.trade || S.players[id].money<0) return false; nextTurn(S); }
+function checkWinner(S){
+  const alive=S.order.filter(id=>!S.players[id].out);
+  if (alive.length<=1){ S.status='over'; S.winner=alive[0]||null; S.trade=null; emit(S,{t:'win',id:S.winner}); if (S.winner) log(S,`${nm(S,S.winner)} beherrscht die Handelsrouten und ist Sternenbaron!`); return true; }
+  return false;
+}
+function actBankrupt(S,id){
+  const p=S.players[id]; if (!p || p.out) return false;
+  const cred = p.debtTo && S.players[p.debtTo] && !S.players[p.debtTo].out ? p.debtTo : null;
+  emit(S,{t:'bankrupt',id});
+  for (const i in S.props){ const pr=S.props[i]; if (pr.owner!==id) continue; pr.houses=0; if (cred) pr.owner=cred; else { pr.owner=null; pr.mort=false; } }
+  if (cred){ if (p.money<0) S.players[cred].money+=p.money; S.players[cred].jailCards+=p.jailCards; }
+  p.money=0; p.out=true; p.jail=0; p.jailCards=0;
+  log(S,`${p.name} ist bankrott${cred?` – alle Planeten gehen an ${nm(S,cred)}`:' – alle Planeten fallen an die Bank'}.`);
+  if (S.trade && (S.trade.from===id || S.trade.to===id)) S.trade=null;
+  if (!checkWinner(S) && curId(S)===id) nextTurn(S);
+}
+function actForceSkip(S){
+  const id=curId(S);
+  log(S,`Die Spielleitung überspringt den Zug von ${nm(S,id)}.`);
+  if (S.players[id].money<0) actBankrupt(S,id); else nextTurn(S);
+}
+const unmortCost = i => Math.ceil(SPACES[i].price/2*1.1);
+function canManage(S,id){ return S.status==='playing' && curId(S)===id && (S.phase==='roll'||S.phase==='end') && !S.trade; }
+function buildErr(S,id,i){
+  const sp=SPACES[i], pr=S.props[i];
+  if (sp.t!=='prop' || pr.owner!==id) return 'Nicht dein Planet.';
+  if (!ownsGroup(S,id,sp.g)) return 'Du brauchst alle Planeten der Gruppe.';
+  const grp=GROUP_IDX[sp.g];
+  if (grp.some(j=>S.props[j].mort)) return 'Ein Planet der Gruppe ist verpfändet.';
+  if (pr.houses>=5) return 'Voll ausgebaut.';
+  if (pr.houses>Math.min(...grp.map(j=>S.props[j].houses))) return 'Baue gleichmäßig über die Gruppe.';
+  if (S.players[id].money<GROUPS[sp.g].house) return 'Nicht genug Credits.';
+  return null;
+}
+function sellErr(S,id,i){
+  const sp=SPACES[i], pr=S.props[i];
+  if (sp.t!=='prop' || pr.owner!==id || pr.houses<1) return 'Nichts zu verkaufen.';
+  if (pr.houses<Math.max(...GROUP_IDX[sp.g].map(j=>S.props[j].houses))) return 'Baue gleichmäßig zurück.';
+  return null;
+}
+function mortErr(S,id,i){
+  const sp=SPACES[i], pr=S.props[i];
+  if (pr.owner!==id || pr.mort) return 'Nicht möglich.';
+  if (sp.t==='prop' && GROUP_IDX[sp.g].some(j=>S.props[j].houses>0)) return 'Erst alle Bauten der Gruppe verkaufen.';
+  return null;
+}
+function unmortErr(S,id,i){ const pr=S.props[i]; if (pr.owner!==id || !pr.mort) return 'Nicht möglich.'; if (S.players[id].money<unmortCost(i)) return 'Nicht genug Credits.'; return null; }
+function actBuild(S,id,i){ if (!canManage(S,id) || buildErr(S,id,i)) return false; const sp=SPACES[i], cost=GROUPS[sp.g].house; S.props[i].houses++; S.players[id].money-=cost; emit(S,{t:'build',id,i,amt:cost}); log(S,`${nm(S,id)} errichtet ${S.props[i].houses===5?'eine Zitadelle':'einen Außenposten'} auf ${sp.name}.`); }
+function actSell(S,id,i){ if (!canManage(S,id) || sellErr(S,id,i)) return false; const sp=SPACES[i], amt=GROUPS[sp.g].house/2; S.props[i].houses--; S.players[id].money+=amt; emit(S,{t:'sell',id,i,amt}); log(S,`${nm(S,id)} verkauft einen Bau auf ${sp.name}.`); }
+function actMort(S,id,i){ if (!canManage(S,id) || mortErr(S,id,i)) return false; const amt=SPACES[i].price/2; S.props[i].mort=true; S.players[id].money+=amt; emit(S,{t:'mort',id,i,amt}); log(S,`${nm(S,id)} verpfändet ${SPACES[i].name} für ${amt} Cr.`); }
+function actUnmort(S,id,i){ if (!canManage(S,id) || unmortErr(S,id,i)) return false; const amt=unmortCost(i); S.props[i].mort=false; S.players[id].money-=amt; emit(S,{t:'unmort',id,i,amt}); log(S,`${nm(S,id)} löst ${SPACES[i].name} aus.`); }
+function tradable(S,id){ return Object.keys(S.props).map(Number).filter(i => { const pr=S.props[i]; if (pr.owner!==id) return false; const sp=SPACES[i]; return sp.t!=='prop' || GROUP_IDX[sp.g].every(j=>S.props[j].houses===0); }); }
+function tradeErr(S,t){
+  const A=S.players[t.from], B=S.players[t.to];
+  if (!A || !B || A.out || B.out) return 'Ein Spieler ist nicht mehr dabei.';
+  if (t.give.money<0 || t.get.money<0) return 'Ungültiger Betrag.';
+  if (t.give.money>A.money) return `${A.name} hat nicht genug Credits.`;
+  if (t.get.money>B.money) return `${B.name} hat nicht genug Credits.`;
+  const ta=tradable(S,t.from), tb=tradable(S,t.to);
+  if (!t.give.props.every(i=>ta.includes(i)) || !t.get.props.every(i=>tb.includes(i))) return 'Die Planeten sind nicht mehr handelbar.';
+  if (!t.give.props.length && !t.get.props.length && !t.give.money && !t.get.money) return 'Das Angebot ist leer.';
+  return null;
+}
+function actPropose(S,t){
+  if (!canManage(S,t.from) || tradeErr(S,t)) return false;
+  S.trade={...t,seq:(S.trade?.seq||0)+1};
+  emit(S,{t:'offer',from:t.from,to:t.to});
+  log(S,`${nm(S,t.from)} bietet ${nm(S,t.to)} einen Handel an.`);
+}
+function actTradeAnswer(S,accept){
+  const t=S.trade; if (!t) return false;
+  if (!accept){ log(S,`${nm(S,t.to)} lehnt den Handel ab.`); S.trade=null; return; }
+  const err=tradeErr(S,t);
+  if (err){ log(S,`Handel geplatzt: ${err}`); S.trade=null; return; }
+  for (const i of t.give.props) S.props[i].owner=t.to;
+  for (const i of t.get.props) S.props[i].owner=t.from;
+  S.players[t.from].money += t.get.money - t.give.money;
+  S.players[t.to].money += t.give.money - t.get.money;
+  emit(S,{t:'trade',from:t.from,to:t.to,a:t.get.money-t.give.money});
+  log(S,`${nm(S,t.to)} nimmt den Handel mit ${nm(S,t.from)} an.`);
+  S.trade=null;
+}
+function actTradeCancel(S){ if (!S.trade) return false; log(S,`${nm(S,S.trade.from)} zieht das Angebot zurück.`); S.trade=null; }
+
+/* ============================================================ app state */
+let myId=null, capsReady=false, P2P=false;
+let mode=null, view='menu', state=null, gameRef=null, unsub=null, gameCode=null, loadTimer=null;
+let writing=false, animating=false, hadGameState=false, seenEv=0;
+let pickedShip = store.get('sb-ship') ?? 0;
+let menuTab = store.get('sb-tab') || 'online';
+let modalKind=null, modalArg=null;
+let animQ=Promise.resolve();
+const isMe = id => mode==='local' ? true : id===myId;
+const actorId = () => mode==='local' ? (state ? curId(state) : null) : myId;
+
+/* ============================================================ sound (synthesized, no files) */
+const sfx = {
+  ctx:null, master:null, on: store.get('sb-sound') !== false, noiseBuf:null, vol: store.get('sb-vol') ?? 70,
+  setVol(v){ this.vol=v; store.set('sb-vol',v); if (this.master) this.master.gain.setTargetAtTime(v/100*0.8,this.ctx.currentTime,0.03); },
+  init(){
+    if (this.ctx){ if (this.ctx.state==='suspended') this.ctx.resume(); return; }
+    const C=window.AudioContext||window.webkitAudioContext; if (!C) return;
+    try {
+      this.ctx=new C(); const comp=this.ctx.createDynamicsCompressor(); comp.threshold.value=-18; comp.ratio.value=4;
+      this.master=this.ctx.createGain(); this.master.gain.value=this.vol/100*0.8; this.master.connect(comp); comp.connect(this.ctx.destination);
+      const len=this.ctx.sampleRate*2, b=this.ctx.createBuffer(1,len,this.ctx.sampleRate), d=b.getChannelData(0);
+      for (let i=0;i<len;i++) d[i]=Math.random()*2-1; this.noiseBuf=b;
+    } catch(e){ this.ctx=null; }
+  },
+  tone(freq,dur,o={}){
+    const c=this.ctx, t=c.currentTime+(o.delay||0), osc=c.createOscillator(), g=c.createGain();
+    osc.type=o.type||'sine'; osc.frequency.setValueAtTime(freq,t); if (o.slide) osc.frequency.exponentialRampToValueAtTime(o.slide,t+dur);
+    const v=o.gain??0.15, a=o.attack??0.008;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(v,t+a); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    osc.connect(g); g.connect(this.master); osc.start(t); osc.stop(t+dur+0.05);
+  },
+  noise(dur,o={}){
+    const c=this.ctx, t=c.currentTime+(o.delay||0), src=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain();
+    src.buffer=this.noiseBuf; f.type=o.filter||'bandpass'; f.Q.value=o.q??1; f.frequency.setValueAtTime(o.freq||1000,t); if (o.to) f.frequency.exponentialRampToValueAtTime(o.to,t+dur);
+    const v=o.gain??0.15, a=o.attack??0.005;
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(v,t+a); g.gain.setValueAtTime(v,t+Math.max(a,dur*(o.hold??0.2))); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t,Math.random()); src.stop(t+dur+0.05);
+  },
+  play(name,arg){
+    if (!this.on || !this.ctx || this.vol<=0) return;
+    try {
+      switch(name){
+        case 'tap': this.tone(1500,.05,{gain:.035}); break;
+        case 'tick': this.tone(2400,.022,{type:'square',gain:.018}); this.noise(.02,{freq:4000,q:2,gain:.04}); break;
+        case 'dice': for (let k=0;k<7;k++) this.noise(.05,{freq:2200+Math.random()*2200,q:4,gain:.28-k*.03,delay:k*.1+Math.random()*.04}); break;
+        case 'fly': { const d=arg||1; this.noise(d,{freq:300,to:1400,q:.7,gain:.09,attack:.15,hold:.6}); this.tone(70,d,{type:'triangle',slide:110,gain:.06,attack:.15}); break; }
+        case 'warp': this.noise(1.5,{freq:180,to:5000,q:.6,gain:.22,attack:.3,hold:.5}); this.tone(55,1.5,{type:'sawtooth',slide:30,gain:.05,attack:.2}); this.tone(880,.9,{slide:3520,gain:.03,delay:.45}); break;
+        case 'coin': this.tone(1568,.12,{type:'triangle',gain:.07}); this.tone(2093,.22,{type:'triangle',gain:.06,delay:.06}); break;
+        case 'pay': this.tone(620,.28,{type:'triangle',slide:300,gain:.09}); this.noise(.3,{freq:3000,to:600,q:2,gain:.05}); break;
+        case 'buy': this.tone(659,.3,{gain:.1}); this.tone(988,.4,{gain:.09,delay:.09}); this.tone(1319,.6,{gain:.07,delay:.18}); break;
+        case 'build': this.tone(392,.14,{type:'triangle',gain:.1}); this.tone(587,.26,{type:'triangle',gain:.09,delay:.08}); this.noise(.2,{freq:800,q:3,gain:.06}); break;
+        case 'card': [784,988,1175,1568].forEach((f,k)=>this.tone(f,.5,{gain:.05,delay:k*.06})); this.noise(.6,{freq:6000,q:.5,gain:.03,attack:.1}); break;
+        case 'turn': this.tone(880,.18,{gain:.08}); this.tone(1175,.4,{gain:.07,delay:.11}); break;
+        case 'error': this.tone(196,.18,{type:'square',gain:.025}); break;
+        case 'boom': this.noise(1.2,{filter:'lowpass',freq:900,to:80,q:.5,gain:.35}); this.tone(90,1,{slide:35,gain:.15}); break;
+        case 'win': [523,659,784,1047,1319].forEach((f,k)=>this.tone(f,.7,{gain:.07,delay:k*.12})); break;
+      }
+    } catch(e){}
+  }
+};
+document.addEventListener('pointerdown',()=>sfx.init(),{passive:true});
+document.addEventListener('keydown',()=>sfx.init());
+
+/* ============================================================ 3D scene */
+const canvas=$('#c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.08;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x020308);
+const camera=new THREE.PerspectiveCamera(40,1,0.1,800);
+scene.add(camera);
+const V3=(x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
+let starsObj=null, hlObj=null;
+
+/* environment for reflections: a small studio scene baked into a PMREM */
+(function(){
+  const pm=new THREE.PMREMGenerator(renderer), es=new THREE.Scene();
+  const sky=new THREE.Mesh(new THREE.SphereGeometry(50,32,16),new THREE.MeshBasicMaterial({side:THREE.BackSide,vertexColors:true}));
+  const pa=sky.geometry.attributes.position, cols=[];
+  for (let i=0;i<pa.count;i++){ const y=pa.getY(i)/50; if (y>0) cols.push(0.03+0.12*y,0.04+0.15*y,0.07+0.26*y); else cols.push(0.01,0.01,0.015); }
+  sky.geometry.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); es.add(sky);
+  const panel=(c,k,p,s)=>{ const m=new THREE.Mesh(new THREE.PlaneGeometry(s[0],s[1]),new THREE.MeshBasicMaterial({color:new THREE.Color(c).multiplyScalar(k),side:THREE.DoubleSide})); m.position.set(...p); m.lookAt(0,0,0); es.add(m); };
+  panel('#ffffff',3.2,[18,32,14],[34,9]); panel('#ffb35a',2.4,[-34,9,-18],[22,9]); panel('#5ab8ff',2.4,[26,6,-30],[22,6]); panel('#cfd8ff',1.2,[-10,24,30],[16,16]);
+  scene.environment=pm.fromScene(es,0.035).texture; pm.dispose();
+})();
+
+scene.add(new THREE.HemisphereLight(0x9fb8ff,0x0a0610,0.35));
+const key=new THREE.DirectionalLight(0xfff0dc,1.35); key.position.set(9,15,11); scene.add(key);
+const fill=new THREE.DirectionalLight(0x5ab8ff,0.45); fill.position.set(-12,6,-6); scene.add(fill);
+const holoLight=new THREE.PointLight(0x4aa8ff,1.6,12,2); holoLight.position.set(0,2.2,0); scene.add(holoLight);
+
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); draw(g,w,h); const t=new THREE.CanvasTexture(c); t.encoding=THREE.sRGBEncoding; t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy()); return t; }
+function radialTex(stops){ return canvasTex(128,128,g=>{ const gr=g.createRadialGradient(64,64,0,64,64,64); stops.forEach(([o,c])=>gr.addColorStop(o,c)); g.fillStyle=gr; g.fillRect(0,0,128,128); }); }
+const glowTex=radialTex([[0,'rgba(255,255,255,1)'],[.18,'rgba(255,255,255,.75)'],[.45,'rgba(255,255,255,.18)'],[1,'rgba(255,255,255,0)']]);
+const softTex=radialTex([[0,'rgba(255,255,255,1)'],[.5,'rgba(255,255,255,.35)'],[1,'rgba(255,255,255,0)']]);
+const shadowTex=radialTex([[0,'rgba(0,0,0,.75)'],[.6,'rgba(0,0,0,.25)'],[1,'rgba(0,0,0,0)']]);
+const ADD={transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,toneMapped:false};
+function setLS(g,px){ try { g.letterSpacing=px+'px'; } catch(e){} }
+
+/* --- starfield with twinkle (custom shader) --- */
+const starMat=new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0},uPR:{value:renderer.getPixelRatio()}},
+  vertexShader:`attribute float aPhase; attribute float aSize; attribute vec3 aColor; uniform float uTime; uniform float uPR; varying vec3 vC; varying float vA;
+    void main(){ vec4 mv=modelViewMatrix*vec4(position,1.0); gl_Position=projectionMatrix*mv; float tw=0.65+0.35*sin(uTime*(0.6+aPhase)+aPhase*12.0); gl_PointSize=aSize*(0.8+0.4*tw)*uPR*(260.0/-mv.z); vC=aColor; vA=tw; }`,
+  fragmentShader:`varying vec3 vC; varying float vA; void main(){ float d=length(gl_PointCoord-0.5); float a=smoothstep(0.5,0.0,d); gl_FragColor=vec4(vC*a*vA,1.0); }`,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
+});
+(function(){
+  const n=3200, pos=new Float32Array(n*3), col=new Float32Array(n*3), ph=new Float32Array(n), sz=new Float32Array(n);
+  for (let i=0;i<n;i++){
+    const r=140+Math.random()*160, u=Math.random()*2-1, th=Math.random()*Math.PI*2, s=Math.sqrt(1-u*u);
+    pos[i*3]=r*s*Math.cos(th); pos[i*3+1]=r*u; pos[i*3+2]=r*s*Math.sin(th);
+    const c=new THREE.Color().setHSL(Math.random()<.2?0.08:0.6,0.35+Math.random()*.3,0.75);
+    col.set([c.r,c.g,c.b],i*3); ph[i]=Math.random()*3; sz[i]=Math.random()<.04?3.2:0.8+Math.random()*1.4;
+  }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3)); g.setAttribute('aColor',new THREE.BufferAttribute(col,3)); g.setAttribute('aPhase',new THREE.BufferAttribute(ph,1)); g.setAttribute('aSize',new THREE.BufferAttribute(sz,1));
+  const pts=new THREE.Points(g,starMat); starsObj=pts; pts.frustumCulled=false; scene.add(pts);
+})();
+/* nebula clouds */
+[['#6a3cff',[-120,-20,-160],200,.16],['#1f8fff',[150,-60,-120],170,.13],['#ff3f8f',[40,-90,190],220,.1],['#ff9a3c',[-170,40,80],150,.07]].forEach(([c,p,s,o])=>{
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:new THREE.Color(c),opacity:o,...ADD})); sp.position.set(...p); sp.scale.set(s,s,1); scene.add(sp);
+});
+/* distant sun */
+const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color('#ffe6c2'),opacity:1,...ADD})); sunSprite.position.set(170,55,-230); sunSprite.scale.set(70,70,1); scene.add(sunSprite);
+const sunHalo=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:new THREE.Color('#ff9a4a'),opacity:.25,...ADD})); sunHalo.position.copy(sunSprite.position); sunHalo.scale.set(260,260,1); scene.add(sunHalo);
+/* gas giant in the background */
+const giant=new THREE.Group(); giant.position.set(-190,-40,-300); scene.add(giant);
+(function(){
+  const tex=canvasTex(1024,512,(g,W,H)=>{
+    for (let y=0;y<H;y++){ const t=y/H; const b=Math.sin(t*26+Math.sin(t*9)*2.2)*.5+.5, b2=Math.sin(t*71)*.5+.5; const c=new THREE.Color().setHSL(0.06+b*0.04,0.45+b2*.15,0.22+b*0.32); g.fillStyle=c.getStyle(); g.fillRect(0,y,W,1); }
+    for (let k=0;k<500;k++){ g.fillStyle=`rgba(255,240,220,${Math.random()*.05})`; g.fillRect(Math.random()*W,Math.random()*H,40+Math.random()*180,1+Math.random()*3); }
+    g.fillStyle='rgba(255,170,110,.55)'; g.beginPath(); g.ellipse(640,300,46,20,0,0,Math.PI*2); g.fill();
+  });
+  const planet=new THREE.Mesh(new THREE.SphereGeometry(34,64,48),new THREE.MeshStandardMaterial({map:tex,roughness:.95,metalness:0,envMapIntensity:.2}));
+  planet.rotation.z=.32; planet.name='giant'; giant.add(planet);
+  const atm=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:new THREE.Color('#ffb38a'),opacity:.35,...ADD})); atm.scale.set(96,96,1); giant.add(atm);
+  const ringTex=canvasTex(1024,8,(g,W,H)=>{ for (let x=0;x<W;x++){ const a=(Math.sin(x*.07)*.5+.5)*(Math.sin(x*.019)*.4+.6)*.75*(x/W>.05?1:0)*(x/W<.97?1:0); g.fillStyle=`rgba(240,215,190,${a})`; g.fillRect(x,0,1,H); } });
+  const rg=new THREE.RingGeometry(44,74,128,1), pa=rg.attributes.position, uv=rg.attributes.uv, v=V3();
+  for (let k=0;k<pa.count;k++){ v.fromBufferAttribute(pa,k); uv.setXY(k,(v.length()-44)/30,.5); }
+  const ring=new THREE.Mesh(rg,new THREE.MeshBasicMaterial({map:ringTex,transparent:true,side:THREE.DoubleSide,depthWrite:false,opacity:.8}));
+  ring.rotation.x=-Math.PI/2+.28; ring.rotation.y=.32; giant.add(ring);
+})();
+/* orbital station */
+const station=new THREE.Group(); station.position.set(70,22,-110); scene.add(station);
+(function(){
+  const hull=new THREE.MeshStandardMaterial({color:0x9aa3b5,metalness:.85,roughness:.35});
+  const torus=new THREE.Mesh(new THREE.TorusGeometry(7,.7,12,64),hull); station.add(torus);
+  for (let k=0;k<4;k++){ const sp=new THREE.Mesh(new THREE.CylinderGeometry(.25,.25,14,8),hull); sp.rotation.z=k*Math.PI/4; station.add(sp); }
+  station.add(new THREE.Mesh(new THREE.SphereGeometry(1.6,24,16),hull));
+  for (let k=0;k<16;k++){ const a=k/16*Math.PI*2; const l=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(k%4?'#ffd9a0':'#ff5a5a'),...ADD})); l.position.set(Math.cos(a)*7.8,Math.sin(a)*7.8,0); l.scale.set(1.2,1.2,1); station.add(l); }
+  station.rotation.x=.9; station.rotation.y=-.5;
+})();
+/* distant traffic */
+const traffic=[];
+for (let k=0;k<9;k++){
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color(k%3?'#bfe3ff':'#ffcf8a'),...ADD})); s.scale.set(1.4,1.4,1); scene.add(s);
+  const tr={s,p:V3(),d:V3(),life:0}; traffic.push(tr);
+}
+function respawnTraffic(t){ const a=Math.random()*Math.PI*2, r=60+Math.random()*60; t.p.set(Math.cos(a)*r,-6+Math.random()*30,Math.sin(a)*r); const b=a+Math.PI+(Math.random()-.5)*1.2; t.d.set(Math.cos(b),(Math.random()-.5)*.1,Math.sin(b)).multiplyScalar(6+Math.random()*10); t.life=8+Math.random()*10; }
+traffic.forEach(t=>{ respawnTraffic(t); t.life*=Math.random(); });
+
+/* --- warp streaks (camera space) --- */
+const WN=420, warpPos=new Float32Array(WN*6), warpData=[];
+for (let i=0;i<WN;i++){ const a=Math.random()*Math.PI*2, r=1.5+Math.random()*26; warpData.push({x:Math.cos(a)*r,y:Math.sin(a)*r,z:-Math.random()*220}); }
+const warpGeo=new THREE.BufferGeometry(); warpGeo.setAttribute('position',new THREE.BufferAttribute(warpPos,3));
+const warpLines=new THREE.LineSegments(warpGeo,new THREE.LineBasicMaterial({color:0xcfe9ff,...ADD,opacity:0}));
+warpLines.frustumCulled=false; warpLines.visible=false; camera.add(warpLines);
+const warp={v:0,goal:0};
+
+/* --- particles --- */
+const PN=1600, pPos=new Float32Array(PN*3).fill(-999), pCol=new Float32Array(PN*3), pVel=new Float32Array(PN*3), pLife=new Float32Array(PN), pMax=new Float32Array(PN), pBase=new Float32Array(PN*3);
+let pHead=0;
+const pGeo=new THREE.BufferGeometry(); pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3)); pGeo.setAttribute('color',new THREE.BufferAttribute(pCol,3));
+const particles=new THREE.Points(pGeo,new THREE.PointsMaterial({size:.16,map:glowTex,vertexColors:true,sizeAttenuation:true,...ADD}));
+particles.frustumCulled=false; scene.add(particles);
+function spawn(p,v,life,c){ const i=pHead; pHead=(pHead+1)%PN; pPos[i*3]=p.x; pPos[i*3+1]=p.y; pPos[i*3+2]=p.z; pVel[i*3]=v.x; pVel[i*3+1]=v.y; pVel[i*3+2]=v.z; pLife[i]=pMax[i]=life; pBase[i*3]=c.r; pBase[i*3+1]=c.g; pBase[i*3+2]=c.b; }
+const _v=V3();
+function burst(p,color,n=24,speed=1.6){ const c=new THREE.Color(color).multiplyScalar(1.4); for (let k=0;k<n;k++){ _v.set(Math.random()-.5,Math.random()*.8,Math.random()-.5).normalize().multiplyScalar(speed*(.4+Math.random()*.8)); spawn(p,_v,.5+Math.random()*.6,c); } }
+function updateParticles(dt){
+  const drag=1-Math.min(1,dt*2.2);
+  for (let i=0;i<PN;i++){
+    if (pLife[i]<=0) continue;
+    pLife[i]-=dt;
+    if (pLife[i]<=0){ pPos[i*3+1]=-999; pCol[i*3]=pCol[i*3+1]=pCol[i*3+2]=0; continue; }
+    pPos[i*3]+=pVel[i*3]*dt; pPos[i*3+1]+=pVel[i*3+1]*dt; pPos[i*3+2]+=pVel[i*3+2]*dt;
+    pVel[i*3]*=drag; pVel[i*3+1]*=drag; pVel[i*3+2]*=drag;
+    const k=pLife[i]/pMax[i]; pCol[i*3]=pBase[i*3]*k; pCol[i*3+1]=pBase[i*3+1]*k; pCol[i*3+2]=pBase[i*3+2]*k;
+  }
+  pGeo.attributes.position.needsUpdate=true; pGeo.attributes.color.needsUpdate=true;
+}
+
+/* --- tweens --- */
+const tweens=[];
+function tween(dur,fn){ return new Promise(res=>{ tweens.push({st:performance.now(),dur:Math.max(1,REDUCED?Math.min(dur,120):dur),fn,res}); }); }
+
+/* --- board geometry --- */
+const HB=6.1;
+const ALONG=[[-1,0],[0,-1],[1,0],[0,1]], INWARD=[[0,-1],[1,0],[0,1],[-1,0]];
+const ROTY=[0,-Math.PI/2,Math.PI,Math.PI/2];
+const CORN=[[HB-.8,HB-.8],[-(HB-.8),HB-.8],[-(HB-.8),-(HB-.8)],[HB-.8,-(HB-.8)]];
+function tileCenter(i){ const s=Math.floor(i/10), k=i%10, [cx,cz]=CORN[s]; if (!k) return [cx,cz]; const d=.8+(k-.5); return [cx+ALONG[s][0]*d, cz+ALONG[s][1]*d]; }
+function tilePoint(i,a,b,y){ const s=Math.floor(i/10), [x,z]=tileCenter(i); return V3(x+ALONG[s][0]*a+INWARD[s][0]*b, y, z+ALONG[s][1]*a+INWARD[s][1]*b); }
+function roundRect(w,h,r){ const s=new THREE.Shape(), x=-w/2, y=-h/2; s.moveTo(x+r,y); s.lineTo(x+w-r,y); s.quadraticCurveTo(x+w,y,x+w,y+r); s.lineTo(x+w,y+h-r); s.quadraticCurveTo(x+w,y+h,x+w-r,y+h); s.lineTo(x+r,y+h); s.quadraticCurveTo(x,y+h,x,y+h-r); s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y); return s; }
+function slab(w,h,r,depth,bevel){ const g=new THREE.ExtrudeGeometry(roundRect(w,h,r),{depth,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:3,curveSegments:10}); g.rotateX(-Math.PI/2); return g; }
+function ctxRoundRect(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
+
+const boardGroup=new THREE.Group(); scene.add(boardGroup);
+const tilePlanes=[], ownerMarks=[], houseSets=[], pickables=[];
+
+function wrapLines(g,text,maxW){ const words=text.split(' '); const lines=[]; let cur=''; for (const w of words){ const t=cur?cur+' '+w:w; if (g.measureText(t).width>maxW && cur){ lines.push(cur); cur=w; } else cur=t; } if (cur) lines.push(cur); return lines; }
+function drawIcon(g,type,cx,cy,r,color){
+  g.save(); g.strokeStyle=color; g.fillStyle=color; g.lineWidth=5; g.shadowColor=color; g.shadowBlur=18; g.lineCap='round'; g.lineJoin='round';
+  if (type==='gate'){ for (let k=0;k<3;k++){ g.globalAlpha=1-k*.3; g.beginPath(); g.arc(cx,cy,r-k*13,0,Math.PI*2); g.stroke(); } g.globalAlpha=1; for (let k=0;k<8;k++){ const a=k*Math.PI/4; g.beginPath(); g.arc(cx+Math.cos(a)*r,cy+Math.sin(a)*r,5,0,7); g.fill(); } }
+  else if (type==='reactor'){ g.beginPath(); g.arc(cx,cy,r,0,Math.PI*2); g.stroke(); for (let k=0;k<3;k++){ const a=k*Math.PI*2/3-Math.PI/2; g.beginPath(); g.moveTo(cx,cy); g.arc(cx,cy,r*.75,a-.45,a+.45); g.closePath(); g.fill(); } g.beginPath(); g.arc(cx,cy,r*.18,0,Math.PI*2); g.fill(); }
+  else if (type==='crystal'){ g.beginPath(); g.moveTo(cx,cy-r); g.lineTo(cx+r*.55,cy-r*.2); g.lineTo(cx+r*.35,cy+r); g.lineTo(cx-r*.35,cy+r); g.lineTo(cx-r*.55,cy-r*.2); g.closePath(); g.stroke(); g.beginPath(); g.moveTo(cx,cy-r); g.lineTo(cx,cy+r); g.moveTo(cx-r*.55,cy-r*.2); g.lineTo(cx+r*.55,cy-r*.2); g.stroke(); }
+  else if (type==='funk'){ for (let k=1;k<=3;k++){ g.globalAlpha=1-(k-1)*.25; g.beginPath(); g.arc(cx-r*.45,cy+r*.35,k*r*.4,-Math.PI/2.4,-0.25); g.stroke(); } g.globalAlpha=1; g.beginPath(); g.arc(cx-r*.45,cy+r*.35,7,0,Math.PI*2); g.fill(); }
+  else if (type==='smug'){ ctxRoundRect(g,cx-r*.8,cy-r*.55,r*1.6,r*1.1,8); g.stroke(); g.beginPath(); g.moveTo(cx-r*.8,cy-r*.15); g.lineTo(cx+r*.8,cy-r*.15); g.moveTo(cx,cy-r*.55); g.lineTo(cx,cy+r*.55); g.stroke(); }
+  else if (type==='tax'){ g.beginPath(); g.moveTo(cx,cy-r); g.lineTo(cx+r,cy); g.lineTo(cx,cy+r); g.lineTo(cx-r,cy); g.closePath(); g.stroke(); g.font=`700 ${r*.9}px Rajdhani,Inter,sans-serif`; g.textAlign='center'; g.textBaseline='middle'; g.fillText('Cr',cx,cy+3); }
+  g.restore();
+}
+function plateBg(g,W,H){
+  const bg=g.createLinearGradient(0,0,0,H); bg.addColorStop(0,'#1b1f29'); bg.addColorStop(1,'#0c0f15'); g.fillStyle=bg; g.fillRect(0,0,W,H);
+  g.strokeStyle='rgba(255,255,255,.045)'; g.lineWidth=2; g.beginPath(); g.moveTo(16,H*.66); g.lineTo(W-16,H*.66); g.stroke();
+  g.fillStyle='rgba(255,255,255,.14)'; for (const [x,y] of [[12,12],[W-12,12],[12,H-12],[W-12,H-12]]){ g.beginPath(); g.arc(x,y,3,0,7); g.fill(); }
+  g.strokeStyle='rgba(255,255,255,.07)'; g.lineWidth=2; g.strokeRect(1,1,W-2,H-2);
+}
+function textLines(g,text,font,size,y,W,maxW,color,ls=2){
+  g.font=font.replace('$',size); setLS(g,ls); g.fillStyle=color; g.textAlign='center'; g.textBaseline='middle';
+  const ls2=wrapLines(g,text,maxW); ls2.forEach((l,k)=>g.fillText(l,W/2,y+(k-(ls2.length-1)/2)*size*1.02)); setLS(g,0);
+}
+const HUDF='700 $px Rajdhani,Inter,sans-serif';
+function tileTexture(i){
+  const sp=SPACES[i], corner=i%10===0, W=corner?400:256, H=corner?400:410;
+  return canvasTex(W,H,(g)=>{
+    plateBg(g,W,H);
+    const price=()=>{ g.font='600 34px Rajdhani,Inter,sans-serif'; setLS(g,2); g.fillStyle='#ffc35a'; g.textAlign='center'; g.fillText(sp.price+' Cr',W/2,H-40); setLS(g,0); };
+    if (sp.t==='prop'){
+      const c=GROUPS[sp.g].color;
+      g.save(); g.shadowColor=c; g.shadowBlur=28; g.fillStyle=c; ctxRoundRect(g,18,18,W-36,44,10); g.fill(); g.restore();
+      g.fillStyle='rgba(255,255,255,.4)'; ctxRoundRect(g,24,22,W-48,6,3); g.fill();
+      g.save(); const pg=g.createRadialGradient(W/2-16,226-18,4,W/2,226,48); pg.addColorStop(0,'#ffffff'); pg.addColorStop(.25,c); pg.addColorStop(.85,'#06070b'); g.shadowColor=c; g.shadowBlur=30; g.fillStyle=pg; g.beginPath(); g.arc(W/2,226,42,0,Math.PI*2); g.fill(); g.restore();
+      g.strokeStyle='rgba(255,255,255,.28)'; g.lineWidth=2.5; g.beginPath(); g.ellipse(W/2,226,70,13,-.22,0,Math.PI*2); g.stroke();
+      textLines(g,sp.name.toUpperCase(),HUDF,38,128,W,W-30,'#eef1f7');
+      price();
+    } else if (sp.t==='gate'){
+      textLines(g,sp.name.toUpperCase(),HUDF,38,74,W,W-30,'#eef1f7');
+      drawIcon(g,'gate',W/2,222,62,'#9fd0ff'); price();
+    } else if (sp.t==='util'){
+      textLines(g,sp.name.toUpperCase(),HUDF,38,74,W,W-30,'#eef1f7');
+      drawIcon(g,i===12?'reactor':'crystal',W/2,222,58,'#7ef0d0'); price();
+    } else if (sp.t==='card'){
+      const funk=sp.deck==='funk', c=funk?'#5ab8ff':'#ffc35a';
+      textLines(g,(funk?'Holo-Funk':'Schmuggler-funk').toUpperCase(),HUDF,40,78,W,W-30,c);
+      drawIcon(g,funk?'funk':'smug',W/2,236,62,c);
+    } else if (sp.t==='tax'){
+      textLines(g,sp.name.toUpperCase(),HUDF,38,74,W,W-30,'#eef1f7');
+      drawIcon(g,'tax',W/2,220,54,'#ff8a8a');
+      g.font='600 32px Rajdhani,Inter,sans-serif'; g.fillStyle='#ff9f9f'; g.textAlign='center'; g.fillText('Zahle '+sp.amount+' Cr',W/2,H-40);
+    } else if (sp.t==='start'){
+      g.save(); g.fillStyle='#5ab8ff'; g.shadowColor='#5ab8ff'; g.shadowBlur=24; g.beginPath(); g.moveTo(340,300); g.lineTo(240,245); g.lineTo(240,278); g.lineTo(62,278); g.lineTo(62,322); g.lineTo(240,322); g.lineTo(240,355); g.closePath(); g.fill(); g.restore();
+      textLines(g,'RAUMHAFEN',HUDF,52,84,W,W-30,'#eef1f7',6); textLines(g,'NOVA',HUDF,72,140,W,W-30,'#5ab8ff',14);
+      g.font='600 30px Rajdhani,Inter,sans-serif'; g.fillStyle='#ffc35a'; g.textAlign='center'; g.fillText('+200 Cr beim Passieren',W/2,206);
+    } else if (sp.t==='jail'){
+      g.fillStyle='#250c12'; ctxRoundRect(g,12,12,226,226,14); g.fill();
+      g.save(); g.strokeStyle='#ff5a5f'; g.shadowColor='#ff5a5f'; g.shadowBlur=18; g.lineWidth=4; ctxRoundRect(g,12,12,226,226,14); g.stroke();
+      g.lineWidth=6; for (let k=1;k<5;k++){ g.beginPath(); g.moveTo(12+k*45,16); g.lineTo(12+k*45,234); g.stroke(); } g.restore();
+      textLines(g,'ARREST',HUDF,40,125,250,240,'#ffd0d0',6);
+      g.font='600 32px Rajdhani,Inter,sans-serif'; g.fillStyle='#eef1f7'; g.textAlign='center'; g.fillText('NUR ZU',322,170); g.fillText('BESUCH',322,204); g.fillText('ARRESTBAKE',200,330);
+    } else if (sp.t==='free'){
+      g.save(); g.translate(W/2,H/2+40); g.strokeStyle='#b98bff'; g.shadowColor='#b98bff'; g.shadowBlur=22; g.lineWidth=5;
+      for (let k=0;k<4;k++){ g.beginPath(); for (let a=0;a<Math.PI*2.2;a+=.05){ const r=8+a*19; g.lineTo(Math.cos(a+k*Math.PI/2)*r,Math.sin(a+k*Math.PI/2)*r*.6);} g.stroke(); } g.restore();
+      textLines(g,'NEBEL-',HUDF,52,72,W,W-30,'#eef1f7',6); textLines(g,'RASTPLATZ',HUDF,52,120,W,W-30,'#b98bff',6);
+    } else if (sp.t==='tojail'){
+      g.save(); g.fillStyle='#ff5a5f'; g.shadowColor='#ff5a5f'; g.shadowBlur=24; g.beginPath(); g.moveTo(W/2,170); g.lineTo(W/2+105,300); g.lineTo(W/2,272); g.lineTo(W/2-105,300); g.closePath(); g.fill(); g.restore();
+      textLines(g,'ABFANG-',HUDF,52,72,W,W-30,'#eef1f7',6); textLines(g,'KREUZER',HUDF,52,120,W,W-30,'#ff5a5f',6);
+      g.font='600 30px Rajdhani,Inter,sans-serif'; g.fillStyle='#eef1f7'; g.textAlign='center'; g.fillText('Ab in die Arrestbake',W/2,350);
+    }
+  });
+}
+function buildBoard(){
+  const slabMat=new THREE.MeshStandardMaterial({color:0x16191f,metalness:.9,roughness:.3});
+  const base=new THREE.Mesh(slab(13.3,13.3,.6,.42,.07),slabMat); base.position.y=-0.49; boardGroup.add(base);
+  const rimPts=roundRect(13.42,13.42,.66).getPoints(96).map(p=>V3(p.x,-0.02,-p.y));
+  const rim=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(rimPts),new THREE.LineBasicMaterial({color:new THREE.Color('#ffb35a').multiplyScalar(1.6),toneMapped:false}));
+  boardGroup.add(rim);
+  const rimLow=rim.clone(); rimLow.material=new THREE.LineBasicMaterial({color:new THREE.Color('#2f8fff').multiplyScalar(1.5),toneMapped:false}); rimLow.position.y=-0.48; boardGroup.add(rimLow);
+  const under=new THREE.Mesh(new THREE.PlaneGeometry(30,30),new THREE.MeshBasicMaterial({map:softTex,color:new THREE.Color('#2a5bff'),opacity:.35,...ADD}));
+  under.rotation.x=-Math.PI/2; under.position.y=-0.7; boardGroup.add(under);
+  // holographic map plate
+  const centerTex=canvasTex(1024,1024,(g,W,H)=>{
+    const bg=g.createRadialGradient(512,470,30,512,512,720); bg.addColorStop(0,'#0e1a33'); bg.addColorStop(.55,'#080d1a'); bg.addColorStop(1,'#05070c'); g.fillStyle=bg; g.fillRect(0,0,W,H);
+    g.strokeStyle='rgba(90,184,255,.07)'; g.lineWidth=1.5; for (let k=0;k<=1024;k+=48){ g.beginPath(); g.moveTo(k,0); g.lineTo(k,1024); g.stroke(); g.beginPath(); g.moveTo(0,k); g.lineTo(1024,k); g.stroke(); }
+    g.save(); g.translate(512,470); g.strokeStyle='rgba(90,184,255,.28)'; g.shadowColor='#5ab8ff'; g.shadowBlur=10;
+    [150,230,310].forEach((r,k)=>{ g.lineWidth=2; g.setLineDash(k===1?[]:[3,9]); g.beginPath(); g.arc(0,0,r,0,Math.PI*2); g.stroke(); });
+    g.setLineDash([]); for (let k=0;k<24;k++){ const a=k/24*Math.PI*2; g.beginPath(); g.moveTo(Math.cos(a)*300,Math.sin(a)*300); g.lineTo(Math.cos(a)*318,Math.sin(a)*318); g.stroke(); }
+    g.restore();
+    g.textAlign='center'; g.textBaseline='middle'; g.shadowColor='rgba(255,195,90,.6)'; g.shadowBlur=26;
+    g.font='700 86px Rajdhani,Inter,sans-serif'; setLS(g,16); g.fillStyle='#f5f1e8'; g.fillText('STERNENBARONE',520,872);
+    g.shadowBlur=0; g.font='600 26px Rajdhani,Inter,sans-serif'; setLS(g,10); g.fillStyle='#ffc35a'; g.fillText('HANDELSLIGA DER FREIEN SEKTOREN',518,936); setLS(g,0);
+  });
+  const center=new THREE.Mesh(new THREE.PlaneGeometry(9.1,9.1),new THREE.MeshStandardMaterial({color:0x020305,roughness:.22,metalness:.2,emissive:0xffffff,emissiveMap:centerTex,emissiveIntensity:1.1}));
+  center.rotation.x=-Math.PI/2; center.position.y=0.004; boardGroup.add(center);
+  // tiles
+  const tileMat=new THREE.MeshStandardMaterial({color:0x22262e,metalness:.85,roughness:.3});
+  const geoN=slab(.94,1.54,.07,.07,.015), geoC=slab(1.54,1.54,.1,.07,.015);
+  for (let i=0;i<40;i++){
+    const s=Math.floor(i/10), corner=i%10===0, w=corner?1.6:1, d=1.6;
+    const grp=new THREE.Group(); const [x,z]=tileCenter(i); grp.position.set(x,0,z); grp.rotation.y=ROTY[s];
+    const box=new THREE.Mesh(corner?geoC:geoN,tileMat); box.position.y=-0.065; box.userData.tile=i; grp.add(box);
+    const plane=new THREE.Mesh(new THREE.PlaneGeometry(w-0.12,d-0.12),new THREE.MeshStandardMaterial({color:0x000000,roughness:.25,metalness:.1,emissive:0xffffff,emissiveMap:tileTexture(i),emissiveIntensity:1.15}));
+    plane.rotation.x=-Math.PI/2; plane.position.y=0.024; plane.userData.tile=i; grp.add(plane);
+    pickables.push(box,plane);
+    if (BUYABLE(i)){
+      const mark=new THREE.Mesh(new THREE.BoxGeometry(w*0.8,0.03,0.06),new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}));
+      mark.position.set(0,0.04,0.7); mark.visible=false; grp.add(mark);
+      const mg=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,opacity:.6,...ADD})); mg.scale.set(w*1.1,.35,1); mg.position.set(0,0.06,0.7); mark.add(mg); mark.userData.glow=mg;
+      ownerMarks[i]=mark;
+    }
+    if (SPACES[i].t==='prop'){
+      const hs=[];
+      const hMat=new THREE.MeshStandardMaterial({color:0xe9eef6,metalness:.6,roughness:.25});
+      const hGlow=new THREE.MeshBasicMaterial({color:new THREE.Color('#4fe08a').multiplyScalar(1.8),toneMapped:false});
+      for (let k=0;k<4;k++){
+        const h=new THREE.Group();
+        const body=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.085,0.1,16),hMat); body.position.y=0.05; h.add(body);
+        const dome=new THREE.Mesh(new THREE.SphereGeometry(0.07,16,8,0,Math.PI*2,0,Math.PI/2),hMat); dome.position.y=0.1; h.add(dome);
+        const band=new THREE.Mesh(new THREE.TorusGeometry(0.08,0.008,6,20),hGlow); band.rotation.x=Math.PI/2; band.position.y=0.03; h.add(band);
+        h.position.set(-(-0.3+k*0.2),0.03,-0.6); h.visible=false; grp.add(h); hs.push(h);
+      }
+      const cit=new THREE.Group();
+      const cMat=new THREE.MeshStandardMaterial({color:0xffd58a,metalness:.95,roughness:.18,emissive:0x5a3300,emissiveIntensity:.6});
+      const tower=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.15,0.46,6),cMat); tower.position.y=0.23; cit.add(tower);
+      const tip=new THREE.Mesh(new THREE.ConeGeometry(0.08,0.2,6),cMat); tip.position.y=0.56; cit.add(tip);
+      const beacon=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color('#ffc35a'),...ADD})); beacon.scale.set(.35,.35,1); beacon.position.y=0.68; cit.add(beacon);
+      cit.position.set(0,0.03,-0.58); cit.visible=false; grp.add(cit); hs.push(cit);
+      houseSets[i]=hs;
+    }
+    boardGroup.add(grp); tilePlanes[i]=plane;
+  }
+  // highlight
+  const hlPts=roundRect(1.02,1.62,.1).getPoints(40).map(p=>V3(p.x,0,-p.y));
+  const hl=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(hlPts),new THREE.LineBasicMaterial({color:new THREE.Color('#5ab8ff').multiplyScalar(2),transparent:true,toneMapped:false}));
+  hl.visible=false; hlObj=hl; scene.add(hl);
+  // datapad card stacks
+  const mkStack=(x,z,rot,label,color,icon)=>{
+    const top=canvasTex(256,360,(g,W,H)=>{ g.fillStyle='#0b0e14'; g.fillRect(0,0,W,H); g.save(); g.strokeStyle=color; g.shadowColor=color; g.shadowBlur=16; g.lineWidth=5; ctxRoundRect(g,14,14,W-28,H-28,18); g.stroke(); g.restore(); drawIcon(g,icon,W/2,H/2-30,56,color); textLines(g,label,HUDF,34,H-74,W,W-40,color,4); });
+    const stack=new THREE.Group();
+    const body=new THREE.Mesh(slab(1.1,1.55,.12,.16,.02),new THREE.MeshStandardMaterial({color:0x1d2129,metalness:.85,roughness:.3}));
+    stack.add(body);
+    const face=new THREE.Mesh(new THREE.PlaneGeometry(1.02,1.45),new THREE.MeshStandardMaterial({color:0x000000,roughness:.2,emissive:0xffffff,emissiveMap:top}));
+    face.rotation.x=-Math.PI/2; face.position.y=0.185; stack.add(face);
+    stack.position.set(x,-0.06,z); stack.rotation.y=rot; boardGroup.add(stack);
+  };
+  mkStack(-2.75,-2.5,.5,'HOLO-FUNK','#5ab8ff','funk');
+  mkStack(2.75,-2.5,-.5,'SCHMUGGLER-FUNK','#ffc35a','smug');
+}
+
+/* holo projector + hologram planet */
+const holo=new THREE.Group(); scene.add(holo);
+const holoMat=new THREE.ShaderMaterial({
+  uniforms:{uTime:{value:0},uColor:{value:new THREE.Color('#5ab8ff')},uMap:{value:null}},
+  vertexShader:`varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying float vY;
+    void main(){ vUv=uv; vec4 wp=modelMatrix*vec4(position,1.0); vY=wp.y; vec4 mv=viewMatrix*wp; vN=normalize(normalMatrix*normal); vV=normalize(-mv.xyz); gl_Position=projectionMatrix*mv; }`,
+  fragmentShader:`uniform float uTime; uniform vec3 uColor; uniform sampler2D uMap; varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying float vY;
+    void main(){ float f=pow(1.0-abs(dot(vN,vV)),2.0); float land=texture2D(uMap,vUv).r; float scan=0.62+0.38*sin(vY*80.0-uTime*5.0); float flick=0.93+0.07*sin(uTime*29.0)*sin(uTime*11.0); float a=(0.08+land*0.55+f*1.25)*scan*flick; gl_FragColor=vec4(uColor*a*1.5,1.0); }`,
+  transparent:true,blending:THREE.AdditiveBlending,depthWrite:false
+});
+(function(){
+  const metal=new THREE.MeshStandardMaterial({color:0x2a2f38,metalness:.95,roughness:.22});
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(.62,.8,.16,64),metal); base.position.y=0.0; holo.add(base);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.56,.022,10,64),new THREE.MeshBasicMaterial({color:new THREE.Color('#5ab8ff').multiplyScalar(2.2),toneMapped:false})); ring.rotation.x=Math.PI/2; ring.position.y=0.085; holo.add(ring);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.5,48),new THREE.MeshBasicMaterial({color:new THREE.Color('#1c4fa0'),toneMapped:false})); lens.rotation.x=-Math.PI/2; lens.position.y=0.082; holo.add(lens);
+  const beamTex=canvasTex(64,256,(g,W,H)=>{ const gr=g.createLinearGradient(0,0,0,H); gr.addColorStop(0,'rgba(255,255,255,.0)'); gr.addColorStop(.35,'rgba(255,255,255,.25)'); gr.addColorStop(1,'rgba(255,255,255,.9)'); g.fillStyle=gr; g.fillRect(0,0,W,H); for (let y=0;y<H;y+=6){ g.fillStyle='rgba(0,0,0,.25)'; g.fillRect(0,y,W,2); } });
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.3,.5,2.0,64,1,true),new THREE.MeshBasicMaterial({map:beamTex,color:new THREE.Color('#5ab8ff'),opacity:.32,side:THREE.DoubleSide,...ADD}));
+  beam.position.y=1.08; beam.name='beam'; holo.add(beam);
+  const land=canvasTex(512,256,(g,W,H)=>{ g.fillStyle='#000'; g.fillRect(0,0,W,H); g.filter='blur(6px)'; for (let k=0;k<70;k++){ g.fillStyle=`rgba(255,255,255,${.4+Math.random()*.6})`; g.beginPath(); g.ellipse(Math.random()*W,H*.15+Math.random()*H*.7,10+Math.random()*50,6+Math.random()*24,Math.random()*3,0,7); g.fill(); } g.filter='none'; });
+  holoMat.uniforms.uMap.value=land;
+  const sphere=new THREE.Mesh(new THREE.SphereGeometry(.92,64,40),holoMat); sphere.position.y=2.35; sphere.name='holoPlanet'; holo.add(sphere);
+  const wire=new THREE.Mesh(new THREE.IcosahedronGeometry(.97,3),new THREE.MeshBasicMaterial({color:new THREE.Color('#5ab8ff'),wireframe:true,opacity:.09,...ADD})); wire.position.y=2.35; wire.name='holoWire'; holo.add(wire);
+  const orbitPts=[]; for (let k=0;k<=96;k++){ const a=k/96*Math.PI*2; orbitPts.push(V3(Math.cos(a)*1.55,0,Math.sin(a)*1.55)); }
+  const orbit=new THREE.Line(new THREE.BufferGeometry().setFromPoints(orbitPts),new THREE.LineBasicMaterial({color:new THREE.Color('#5ab8ff'),opacity:.5,...ADD}));
+  orbit.position.y=2.35; orbit.rotation.x=.38; orbit.rotation.z=-.15; orbit.name='holoOrbit'; holo.add(orbit);
+  const sat=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:new THREE.Color('#9fd6ff'),...ADD})); sat.scale.set(.32,.32,1); sat.name='holoSat'; orbit.add(sat);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:softTex,color:new THREE.Color('#2f8fff'),opacity:.35,...ADD})); halo.scale.set(4.2,4.2,1); halo.position.y=2.35; holo.add(halo);
+})();
+const BANK_POS=V3(0,2.35,0);
+
+/* dice: rounded cubes with holo pips */
+function roundedBox(size,r,seg){
+  const g=new THREE.BoxGeometry(size,size,size,seg,seg,seg), p=g.attributes.position, n=g.attributes.normal, h=size/2-r, v=V3(), c=V3();
+  for (let i=0;i<p.count;i++){ v.fromBufferAttribute(p,i); c.set(clamp(v.x,-h,h),clamp(v.y,-h,h),clamp(v.z,-h,h)); const d=v.clone().sub(c); if (d.lengthSq()<1e-9) d.fromBufferAttribute(n,i); d.normalize(); v.copy(c).addScaledVector(d,r); p.setXYZ(i,v.x,v.y,v.z); n.setXYZ(i,d.x,d.y,d.z); }
+  return g;
+}
+const pipTex = n => canvasTex(160,160,(g)=>{
+  g.fillStyle='#0d1018'; g.fillRect(0,0,160,160);
+  const P={1:[[80,80]],2:[[44,44],[116,116]],3:[[40,40],[80,80],[120,120]],4:[[44,44],[116,44],[44,116],[116,116]],5:[[42,42],[118,42],[80,80],[42,118],[118,118]],6:[[46,38],[114,38],[46,80],[114,80],[46,122],[114,122]]}[n];
+  g.fillStyle='#ffc35a'; g.shadowColor='#ffb033'; g.shadowBlur=16; for (const [x,y] of P){ g.beginPath(); g.arc(x,y,13,0,Math.PI*2); g.fill(); }
+});
+const FACE_VALS=[2,5,1,6,3,4];
+const faceMats=FACE_VALS.map(v=>new THREE.MeshStandardMaterial({color:0x14171f,metalness:.4,roughness:.18,emissive:0xffffff,emissiveMap:pipTex(v),emissiveIntensity:1.1}));
+const Yax=V3(0,1,0);
+const TOPQ={1:new THREE.Quaternion(),6:new THREE.Quaternion().setFromAxisAngle(V3(1,0,0),Math.PI),2:new THREE.Quaternion().setFromAxisAngle(V3(0,0,1),Math.PI/2),5:new THREE.Quaternion().setFromAxisAngle(V3(0,0,1),-Math.PI/2),3:new THREE.Quaternion().setFromAxisAngle(V3(1,0,0),-Math.PI/2),4:new THREE.Quaternion().setFromAxisAngle(V3(1,0,0),Math.PI/2)};
+const DICE_REST=[V3(-0.55,0.255,1.95),V3(0.55,0.255,2.2)];
+const diceGeo=roundedBox(0.5,0.08,4);
+const dice=DICE_REST.map((p,k)=>{ const m=new THREE.Mesh(diceGeo,faceMats); m.position.copy(p); m.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(Yax,k?.4:-.3).multiply(TOPQ[k?3:4])); scene.add(m); return m; });
+function animateDice(vals){
+  const axes=dice.map(()=>V3(Math.random()-.5,Math.random()-.5,Math.random()-.5).normalize());
+  const finals=vals.map((v,k)=>new THREE.Quaternion().setFromAxisAngle(Yax,(Math.random()-.5)*1.2+(k?.3:-.3)).multiply(TOPQ[v]));
+  const from=dice.map((d,k)=>DICE_REST[k].clone().add(V3(-3.2+k*.4,0,-1.6)));
+  const spin=new THREE.Quaternion();
+  return tween(1250,(t)=>{
+    const e=EASE.outCubic(t);
+    dice.forEach((d,k)=>{
+      spin.setFromAxisAngle(axes[k],(1-e)*Math.PI*8);
+      d.quaternion.copy(finals[k]).multiply(spin);
+      d.position.lerpVectors(from[k],DICE_REST[k],e);
+      d.position.y=DICE_REST[k].y+Math.abs(Math.sin(t*Math.PI*2.6))*Math.pow(1-t,1.6)*2.4;
+    });
+  });
+}
+
+/* ships */
+function wingGeo(pts,thick=.016){ const s=new THREE.Shape(); s.moveTo(pts[0][0],pts[0][1]); for (let k=1;k<pts.length;k++) s.lineTo(pts[k][0],pts[k][1]); s.closePath(); const g=new THREE.ExtrudeGeometry(s,{depth:thick,bevelEnabled:true,bevelThickness:.006,bevelSize:.006,bevelSegments:1}); g.translate(0,0,-thick/2); g.rotateX(Math.PI/2); return g; }
+function makeShip(type,color){
+  const g=new THREE.Group(), col=new THREE.Color(color);
+  const hull=new THREE.MeshStandardMaterial({color:0xd9dee8,metalness:.75,roughness:.28});
+  const dark=new THREE.MeshStandardMaterial({color:0x2a2e36,metalness:.8,roughness:.35});
+  const glass=new THREE.MeshStandardMaterial({color:0x0b1626,metalness:1,roughness:.05});
+  const paint=new THREE.MeshStandardMaterial({color:col,metalness:.55,roughness:.3,emissive:col,emissiveIntensity:.18,side:THREE.DoubleSide});
+  const add=(geo,mat,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=1,sz=1)=>{ const m=new THREE.Mesh(geo,mat); m.position.set(x,y,z); m.rotation.set(rx,ry,rz); m.scale.set(sx,sy,sz); g.add(m); return m; };
+  const R90=Math.PI/2; let engines=[]; g.userData.spin=[];
+  switch (type){
+    case 0: { // Pfeiljäger
+      add(new THREE.CylinderGeometry(.03,.065,.48,16),hull,0,0,0,R90);
+      add(new THREE.ConeGeometry(.03,.12,16),hull,0,0,.3,R90);
+      add(new THREE.SphereGeometry(.045,16,10),glass,0,.04,.08,0,0,0,1,.7,1.7);
+      const w=wingGeo([[0,.06],[.3,-.12],[.3,-.19],[.04,-.17]]);
+      add(w,paint,.02,0,0); add(w,paint,-.02,0,0,0,0,0,-1,1,1);
+      add(new THREE.CylinderGeometry(.012,.012,.2,8),dark,.3,0,-.08,R90); add(new THREE.CylinderGeometry(.012,.012,.2,8),dark,-.3,0,-.08,R90);
+      add(new THREE.CylinderGeometry(.034,.03,.12,12),dark,.065,0,-.22,R90); add(new THREE.CylinderGeometry(.034,.03,.12,12),dark,-.065,0,-.22,R90);
+      engines=[V3(.065,0,-.29),V3(-.065,0,-.29)]; break; }
+    case 1: { // Ringgleiter
+      add(new THREE.CylinderGeometry(.2,.24,.05,40),hull);
+      add(new THREE.SphereGeometry(.1,24,12,0,Math.PI*2,0,R90),glass,0,.02,0);
+      const r=add(new THREE.TorusGeometry(.28,.018,10,56),paint,0,0,0,R90); g.userData.spin.push([r,'z',1.2]);
+      add(new THREE.BoxGeometry(.05,.02,.12),dark,.12,0,-.2); add(new THREE.BoxGeometry(.05,.02,.12),dark,-.12,0,-.2);
+      engines=[V3(.12,0,-.27),V3(-.12,0,-.27)]; break; }
+    case 2: { // Frachter
+      add(new THREE.BoxGeometry(.2,.12,.44),hull);
+      add(new THREE.BoxGeometry(.12,.05,.08),glass,0,.04,.22);
+      for (let k=0;k<3;k++) add(new THREE.BoxGeometry(.17,.06,.1),k%2?paint:dark,0,.09,.12-k*.12);
+      add(new THREE.CylinderGeometry(.055,.05,.22,16),dark,.14,0,-.15,R90); add(new THREE.CylinderGeometry(.055,.05,.22,16),dark,-.14,0,-.15,R90);
+      add(new THREE.BoxGeometry(.1,.02,.06),paint,.14,0,-.02); add(new THREE.BoxGeometry(.1,.02,.06),paint,-.14,0,-.02);
+      engines=[V3(.14,0,-.27),V3(-.14,0,-.27)]; break; }
+    case 3: { // Korvette
+      add(new THREE.CylinderGeometry(.045,.065,.56,6),hull,0,0,0,R90);
+      add(new THREE.BoxGeometry(.26,.05,.09),paint,0,0,.26);
+      add(new THREE.BoxGeometry(.06,.05,.06),glass,0,.04,.2);
+      add(new THREE.BoxGeometry(.18,.1,.13),dark,0,0,-.26);
+      const fin=wingGeo([[0,.1],[.12,-.1],[0,-.12]]); add(fin,paint,0,.04,-.1,0,0,R90);
+      engines=[V3(-.055,0,-.34),V3(0,0,-.34),V3(.055,0,-.34)]; break; }
+    case 4: { // Kristall
+      const core=add(new THREE.OctahedronGeometry(.12,0),paint,0,0,0,0,0,0,1,1.3,1); g.userData.spin.push([core,'y',1.5]);
+      const r1=add(new THREE.TorusGeometry(.22,.012,8,48),hull,0,0,0,R90); g.userData.spin.push([r1,'z',-.8]);
+      const r2=add(new THREE.TorusGeometry(.18,.008,8,40),dark,0,0,0,R90+.5); g.userData.spin.push([r2,'y',1.1]);
+      engines=[V3(0,0,-.18)]; break; }
+    default: { // Shuttle
+      add(new THREE.CylinderGeometry(.07,.08,.32,20),hull,0,0,0,R90);
+      add(new THREE.SphereGeometry(.07,20,12),hull,0,0,.16);
+      add(new THREE.SphereGeometry(.05,16,10),glass,0,.035,.15,0,0,0,1,.7,1.3);
+      const w=wingGeo([[0,.03],[.22,-.1],[.22,-.15],[0,-.12]]);
+      add(w,paint,.06,-.02,0,0,0,-.35); add(w,paint,-.06,-.02,0,0,0,.35,-1,1,1);
+      add(wingGeo([[0,.0],[.13,-.08],[0,-.12]]),paint,0,.05,-.06,0,0,R90);
+      engines=[V3(0,0,-.19)];
+    }
+  }
+  const glows=engines.map(e=>{ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col.clone().lerp(new THREE.Color('#ffffff'),.35),...ADD})); s.position.copy(e); s.scale.set(.16,.16,1); g.add(s); return s; });
+  g.userData.engines=engines; g.userData.glows=glows;
+  return g;
+}
+const tokens={};
+function makeToken(id,p){
+  const t=new THREE.Group();
+  const ship=makeShip(p.ship,p.color); ship.scale.setScalar(1.55); t.add(ship);
+  const ring=new THREE.Mesh(new THREE.RingGeometry(0.2,0.23,48),new THREE.MeshBasicMaterial({color:new THREE.Color(p.color).multiplyScalar(1.4),opacity:.7,side:THREE.DoubleSide,...ADD}));
+  ring.rotation.x=-Math.PI/2; ring.position.y=-0.4; t.add(ring);
+  const sh=new THREE.Mesh(new THREE.PlaneGeometry(.75,.75),new THREE.MeshBasicMaterial({map:shadowTex,transparent:true,depthWrite:false}));
+  sh.rotation.x=-Math.PI/2; sh.position.y=-0.405; t.add(sh);
+  t.userData={ship,ring,color:new THREE.Color(p.color),target:V3(),yawGoal:0,flying:false,thrust:0,thrustV:0,bank:0,bankGoal:0,phase:Math.random()*6,spawnT:0,dead:false};
+  t.position.copy(tilePoint(0,0,-0.2,0.45));
+  scene.add(t); tokens[id]=t; return t;
+}
+function clearTokens(){ for (const id in tokens){ scene.remove(tokens[id]); delete tokens[id]; } }
+function facing(i){ const s=Math.floor(i/10); return Math.atan2(ALONG[s][0],ALONG[s][1]); }
+function slotFor(S,id){
+  const p=S.players[id], same=S.order.filter(o=>!S.players[o].out && S.players[o].pos===p.pos && (!!S.players[o].jail)===(!!p.jail));
+  const k=Math.max(0,same.indexOf(id));
+  if (p.pos===10){ if (p.jail) return tilePoint(10,0.2+(k%2)*0.32,0.2+Math.floor(k/2)*0.28,0.45); return tilePoint(10,-0.55,-0.5+k*0.28,0.45); }
+  if (p.pos%10===0) return tilePoint(p.pos,-0.35+(k%3)*0.35,-0.35+Math.floor(k/3)*0.4,0.45);
+  return tilePoint(p.pos,-0.22+(k%2)*0.44,-0.45+Math.floor(k/2)*0.34,0.45);
+}
+function placeTokens(S){
+  if (!S || !S.order) return;
+  for (const id of S.order){
+    const t=tokens[id]; if (!t) continue; const p=S.players[id];
+    if (p.out){ t.visible=false; continue; }
+    t.visible=true; t.userData.target.copy(slotFor(S,id)); t.userData.yawGoal=facing(p.pos);
+  }
+}
+const tokPos = id => tokens[id] && tokens[id].visible ? tokens[id].position.clone() : BANK_POS.clone();
+
+/* camera rig with damping, inertia and a "follow" focus */
+const cam={theta:.5,phi:.9,zoom:1.6,base:19,tx:0,tz:0,offX:0,offY:0};
+const goal={theta:.5,phi:.9,zoom:1,base:19,tx:0,tz:0,offX:0,offY:0};
+const vel={theta:0,phi:0}; let dragging=false, camMode='orbit';
+const follow={id:null};
+function layoutGoal(){
+  const w=innerWidth, h=innerHeight; let L=0,R=0,T=60,B=20;
+  if (view==='game'){
+    const dock=$('#dock').getBoundingClientRect();
+    B=h-dock.top+12;
+    if (w>760){ L=w>1000?280:0; T=64; } else { const pl=$('#players').getBoundingClientRect(); T=pl.bottom+6; }
+  } else if (view==='menu'){
+    if (w>900){ R=Math.min(520,w*.42); T=50; B=40; L=0; } else { T=40; B=h*.5; }
+  } else { T=60; B=20; }
+  const fw=Math.max(200,w-L-R), fh=Math.max(160,h-T-B);
+  const cx=(L+w-R)/2, cy=(T+h-B)/2;
+  goal.offX=w/2-cx; goal.offY=h/2-cy;
+  const tanH=Math.tan(THREE.MathUtils.degToRad(20))*2;
+  goal.base=Math.max(14.5*(h/fh), 19*(h/fw))/tanH;
+}
+function applyCamera(){
+  const r=cam.base*cam.zoom;
+  const tx=cam.tx, tz=cam.tz;
+  camera.position.set(tx+r*Math.sin(cam.phi)*Math.sin(cam.theta), r*Math.cos(cam.phi), tz+r*Math.sin(cam.phi)*Math.cos(cam.theta));
+  camera.lookAt(tx,0,tz);
+  const w=innerWidth, h=innerHeight;
+  camera.setViewOffset(w,h,cam.offX,cam.offY,w,h);
+}
+function resize(){
+  const w=innerWidth, h=innerHeight;
+  renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix();
+  starMat.uniforms.uPR.value=renderer.getPixelRatio();
+  layoutGoal();
+}
+addEventListener('resize',resize);
+new ResizeObserver(()=>layoutGoal()).observe($('#dock'));
+
+const ptrs=new Map(); let dragDist=0, pinch0=0, zoom0=1, lastMoveT=0;
+canvas.addEventListener('pointerdown',e=>{ canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY}); dragDist=0; dragging=true; vel.theta=vel.phi=0; if (ptrs.size===2){ const [a,b]=[...ptrs.values()]; pinch0=Math.hypot(a.x-b.x,a.y-b.y); zoom0=goal.zoom; } });
+canvas.addEventListener('pointermove',e=>{
+  const p=ptrs.get(e.pointerId); if (!p) return;
+  const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY; dragDist+=Math.abs(dx)+Math.abs(dy); lastMoveT=performance.now();
+  if (ptrs.size===1){ const dt=-dx*0.0055, dp=-dy*0.0045; goal.theta+=dt; goal.phi=clamp(goal.phi+dp,0.08,1.32); vel.theta=dt; vel.phi=dp; camMode='orbit'; }
+  else if (ptrs.size===2){ const [a,b]=[...ptrs.values()]; const d=Math.hypot(a.x-b.x,a.y-b.y); if (pinch0) goal.zoom=clamp(zoom0*pinch0/d,0.45,1.7); }
+});
+const endPtr=e=>{ const had=ptrs.has(e.pointerId); ptrs.delete(e.pointerId); if (ptrs.size===0){ dragging=false; if (performance.now()-lastMoveT>80) vel.theta=vel.phi=0; } if (had && e.type==='pointerup' && dragDist<6 && ptrs.size===0) pick(e); if (ptrs.size<2) pinch0=0; };
+canvas.addEventListener('pointerup',endPtr); canvas.addEventListener('pointercancel',endPtr);
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); goal.zoom=clamp(goal.zoom*Math.exp(e.deltaY*0.0012),0.45,1.7); },{passive:false});
+const ray=new THREE.Raycaster(), mouse=new THREE.Vector2();
+function pick(e){
+  if (view!=='game') return;
+  const r=canvas.getBoundingClientRect(); mouse.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);
+  ray.setFromCamera(mouse,camera); const hit=ray.intersectObjects(pickables,false)[0];
+  if (hit){ sfx.play('tap'); openTile(hit.object.userData.tile); }
+}
+
+/* effects */
+function floatText(text,color,pos){
+  const c=document.createElement('canvas'); c.width=320; c.height=110; const g=c.getContext('2d');
+  g.font='700 64px Rajdhani,Inter,sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.shadowColor=color; g.shadowBlur=22; g.fillStyle=color; g.fillText(text,160,58);
+  g.shadowBlur=0; g.fillStyle='rgba(255,255,255,.9)'; g.globalAlpha=.35; g.fillText(text,160,58);
+  const tex=new THREE.CanvasTexture(c); tex.encoding=THREE.sRGBEncoding;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false,depthTest:false,toneMapped:false}));
+  sp.scale.set(1.5,.52,1); sp.renderOrder=20; const y0=pos.y+.45; sp.position.set(pos.x,y0,pos.z); scene.add(sp);
+  tween(1700,t=>{ sp.position.y=y0+EASE.outCubic(t)*1.1; sp.material.opacity=t<.12?t/.12:1-Math.max(0,(t-.55)/.45); const s=1+.15*EASE.outCubic(Math.min(1,t*4)); sp.scale.set(1.5*s,.52*s,1); }).then(()=>{ scene.remove(sp); tex.dispose(); sp.material.dispose(); });
+}
+function bez(a,c,b,t,out){ const u=1-t; out.set(u*u*a.x+2*u*t*c.x+t*t*b.x, u*u*a.y+2*u*t*c.y+t*t*b.y, u*u*a.z+2*u*t*c.z+t*t*b.z); return out; }
+function beam(a,b,color){
+  const ctrl=a.clone().lerp(b,.5); ctrl.y+=1.6+a.distanceTo(b)*.12; const col=new THREE.Color(color).multiplyScalar(1.6);
+  const head=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:col,...ADD})); head.scale.set(.7,.7,1); scene.add(head);
+  const p=V3(), pv=V3();
+  return tween(760,t=>{ bez(a,ctrl,b,EASE.inOutSine(t),p); head.position.copy(p); for (let k=0;k<3;k++){ pv.set((Math.random()-.5)*.3,(Math.random()-.5)*.3,(Math.random()-.5)*.3); spawn(p,pv,.45,col); } }).then(()=>{ scene.remove(head); head.material.dispose(); burst(b,color,22,1.4); });
+}
+function ringWave(pos,color){
+  const m=new THREE.Mesh(new THREE.RingGeometry(.86,.92,64),new THREE.MeshBasicMaterial({color:new THREE.Color(color).multiplyScalar(1.8),side:THREE.DoubleSide,...ADD}));
+  m.rotation.x=-Math.PI/2; m.position.copy(pos); scene.add(m);
+  tween(1200,t=>{ const s=.25+EASE.outCubic(t)*1.9; m.scale.set(s,s,s); m.material.opacity=1-t; }).then(()=>{ scene.remove(m); m.geometry.dispose(); m.material.dispose(); });
+}
+function startWarp(ms=900){ warp.goal=1; warpLines.visible=true; setTimeout(()=>{ warp.goal=0; },ms); }
+
+async function flyMove(m){
+  const t=tokens[m.id]; if (!t) return; const u=t.userData; u.flying=true; follow.id=m.id;
+  if (m.jump){
+    sfx.play('warp');
+    const start=t.position.clone(), end=tilePoint(m.path[m.path.length-1],0,0,0.45);
+    burst(start,'#9fd6ff',30,2.2);
+    await tween(1600,x=>{
+      if (x<.42){ const e=EASE.inCubic(x/.42); t.visible=true; t.position.set(start.x,start.y+e*10,start.z); u.ship.rotation.x=-e*1.3; u.thrust=1.6; }
+      else if (x<.58){ t.visible=false; }
+      else { const e=EASE.outCubic((x-.58)/.42); t.visible=true; t.position.set(end.x,end.y+(1-e)*10,end.z); u.ship.rotation.x=(1-e)*1.1; u.thrust=1-e; }
+    });
+    u.ship.rotation.x=0; t.visible=true; burst(end,'#9fd6ff',30,2);
+  } else {
+    const pts=[t.position.clone(),...m.path.map(i=>tilePoint(i,0,-0.2,0.45))];
+    const curve=new THREE.CatmullRomCurve3(pts,false,'centripetal',.5);
+    const dur=Math.min(3800,420+m.path.length*260);
+    sfx.play('fly',dur/1000);
+    const tan=V3(); let lastYaw=t.rotation.y;
+    await tween(dur,x=>{
+      const e=EASE.inOutSine(x); const p=curve.getPointAt(e); p.y+=Math.sin(Math.PI*x)*0.35; t.position.copy(p);
+      curve.getTangentAt(Math.min(.999,Math.max(.001,e)),tan); const yaw=Math.atan2(tan.x,tan.z);
+      const dy=angDiff(yaw,lastYaw); lastYaw=yaw; t.rotation.y=yaw; u.bankGoal=clamp(-dy*14,-.7,.7); u.thrust=.4+Math.sin(Math.PI*x)*.9;
+    });
+  }
+  // stay where the flight ended; the final slot is applied once all events have played
+  const last=m.path[m.path.length-1];
+  if (m.jump) u.target.copy(tilePoint(last,0,0,0.45)); else u.target.copy(t.position).setY(0.45);
+  u.yawGoal=facing(last);
+  u.flying=false; u.thrust=0; u.bankGoal=0; follow.id=null;
+}
+
+/* scene sync */
+function syncProp(i,S){
+  if (!BUYABLE(i)) return;
+  const pr=S?.props?.[i], mark=ownerMarks[i];
+  if (pr && pr.owner && S.players[pr.owner]){ mark.visible=true; const c=new THREE.Color(S.players[pr.owner].color); mark.material.color.copy(c).multiplyScalar(1.5); mark.userData.glow.material.color.copy(c); } else mark.visible=false;
+  tilePlanes[i].material.emissiveIntensity = pr && pr.mort ? 0.32 : 1.15;
+  if (houseSets[i]){ const h=pr?pr.houses:0; houseSets[i].forEach((m,k)=>{ m.visible = h===5 ? k===4 : k<h; }); }
+}
+function syncProps(S){ for (let i=0;i<40;i++) syncProp(i,S); }
+function syncTokens(S){
+  if (S && S.order){
+    for (const id of Object.keys(tokens)) if (!S.order.includes(id)){ scene.remove(tokens[id]); delete tokens[id]; }
+    for (const id of S.order) if (!tokens[id]){ const t=makeToken(id,S.players[id]); t.position.copy(slotFor(S,id)); t.userData.target.copy(t.position); t.userData.yawGoal=t.rotation.y=facing(S.players[id].pos); }
+  } else clearTokens();
+}
+let selectedTile=null;
+function highlightTile(){
+  const hl=hlObj; if (!hl) return;
+  const i = selectedTile ?? (state && state.phase==='buy' && !animating ? state.pendingBuy : null);
+  if (i==null){ hl.visible=false; return; }
+  const corner=i%10===0, [x,z]=tileCenter(i);
+  hl.visible=true; hl.position.set(x,0.03,z); hl.rotation.y=ROTY[Math.floor(i/10)]; hl.scale.set(corner?1.58:1,1,1);
+}
+
+/* render loop */
+let lastT=performance.now(), clockT=0;
+const tmpV=V3(), tmpF=V3();
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min(0.05,(now-lastT)/1000); lastT=now; clockT+=dt;
+  for (let k=tweens.length-1;k>=0;k--){ const tw=tweens[k]; const t=Math.min(1,(now-tw.st)/tw.dur); tw.fn(t); if (t>=1){ tweens.splice(k,1); tw.res(); } }
+  // camera goals
+  if (!dragging){ goal.theta+=vel.theta; goal.phi=clamp(goal.phi+vel.phi,0.08,1.32); vel.theta*=Math.exp(-dt*5); vel.phi*=Math.exp(-dt*5); }
+  if (view!=='game' && !dragging && !REDUCED) goal.theta+=dt*0.045;
+  let fz=1, ftx=0, ftz=0;
+  if (follow.id && tokens[follow.id] && camMode==='orbit'){ const p=tokens[follow.id].position; ftx=p.x*.45; ftz=p.z*.45; fz=.8; }
+  goal.tx=ftx; goal.tz=ftz;
+  cam.theta=damp(cam.theta,goal.theta,7,dt); cam.phi=damp(cam.phi,goal.phi,7,dt); cam.zoom=damp(cam.zoom,goal.zoom*fz,3.2,dt);
+  cam.tx=damp(cam.tx,goal.tx,2.4,dt); cam.tz=damp(cam.tz,goal.tz,2.4,dt); cam.base=damp(cam.base,goal.base,4,dt);
+  cam.offX=damp(cam.offX,goal.offX,5,dt); cam.offY=damp(cam.offY,goal.offY,5,dt);
+  warp.v=damp(warp.v,warp.goal,warp.goal?5:2.5,dt);
+  camera.fov=40+warp.v*22; camera.updateProjectionMatrix();
+  applyCamera();
+  // warp streaks
+  if (warp.v>0.01){
+    warpLines.visible=true; warpLines.material.opacity=warp.v*.9;
+    const speed=60+warp.v*260, len=0.5+warp.v*26;
+    for (let i=0;i<WN;i++){ const d=warpData[i]; d.z+=speed*dt; if (d.z>-2){ d.z=-220; const a=Math.random()*Math.PI*2, r=1.5+Math.random()*26; d.x=Math.cos(a)*r; d.y=Math.sin(a)*r; } warpPos.set([d.x,d.y,d.z,d.x,d.y,d.z-len],i*6); }
+    warpGeo.attributes.position.needsUpdate=true;
+  } else warpLines.visible=false;
+  // ambient
+  starMat.uniforms.uTime.value=clockT; holoMat.uniforms.uTime.value=clockT;
+  starsObj.rotation.y+=dt*0.003;
+  giant.getObjectByName('giant').rotation.y+=dt*0.01;
+  station.rotation.z+=dt*0.05;
+  const hp=holo.getObjectByName('holoPlanet'); hp.rotation.y+=dt*.25; holo.getObjectByName('holoWire').rotation.y-=dt*.08;
+  const orbit=holo.getObjectByName('holoOrbit'), sat=orbit.getObjectByName('holoSat'); sat.position.set(Math.cos(clockT*.7)*1.55,0,Math.sin(clockT*.7)*1.55);
+  holo.getObjectByName('beam').material.opacity=.26+Math.sin(clockT*3.1)*.03+Math.sin(clockT*17)*.015;
+  if (Math.random()<dt*14){ const a=Math.random()*Math.PI*2, r=Math.random()*.5; spawn(V3(Math.cos(a)*r,.15,Math.sin(a)*r),V3(0,.9+Math.random()*.5,0),1.6,new THREE.Color('#2f7fff')); }
+  for (const tr of traffic){ tr.life-=dt; if (tr.life<=0) respawnTraffic(tr); tr.p.addScaledVector(tr.d,dt); tr.s.position.copy(tr.p); tr.s.material.opacity=Math.min(1,tr.life)*.8; }
+  // tokens
+  const active = state && state.status==='playing' && state.order ? curId(state) : null;
+  for (const id in tokens){
+    const t=tokens[id], u=t.userData;
+    if (!u.flying){ t.position.x=damp(t.position.x,u.target.x,6,dt); t.position.y=damp(t.position.y,u.target.y,6,dt); t.position.z=damp(t.position.z,u.target.z,6,dt); t.rotation.y+=angDiff(u.yawGoal,t.rotation.y)*(1-Math.exp(-dt*5)); }
+    u.bank=damp(u.bank,u.flying?u.bankGoal:0,6,dt); u.ship.rotation.z=u.bank+Math.sin(clockT*1.3+u.phase)*0.05;
+    u.ship.position.y=Math.sin(clockT*2+u.phase)*0.045;
+    u.thrustV=damp(u.thrustV,u.thrust,8,dt);
+    for (const [obj,ax,sp] of u.ship.userData.spin) obj.rotation[ax]+=dt*sp;
+    const fl=1+Math.sin(clockT*40+u.phase)*.08;
+    u.ship.userData.glows.forEach(s=>{ const k=(.16+u.thrustV*.22)*fl; s.scale.set(k,k,1); });
+    const on=id===active; u.ring.material.opacity=on?.55+Math.sin(clockT*4)*.3:.3; const sc=on?1+Math.sin(clockT*4)*.12:1; u.ring.scale.set(sc,sc,sc);
+    if (t.visible){
+      u.spawnT-=dt; const rate=u.flying?0.012:0.09;
+      if (u.spawnT<=0){ u.spawnT=rate;
+        tmpF.set(0,0,-1).applyQuaternion(t.quaternion);
+        for (const e of u.ship.userData.engines){ tmpV.copy(e); u.ship.localToWorld(tmpV); const v=tmpF.clone().multiplyScalar(u.flying?.9:.25).add(V3((Math.random()-.5)*.08,(Math.random()-.5)*.08,(Math.random()-.5)*.08)); spawn(tmpV,v,u.flying?.55:.35,u.color.clone().lerp(new THREE.Color('#ffffff'),.3).multiplyScalar(u.flying?1.2:.6)); }
+      }
+    }
+  }
+  const hl=hlObj; if (hl && hl.visible) hl.material.opacity=0.55+Math.sin(clockT*5)*0.4;
+  updateParticles(dt);
+  renderer.render(scene,camera);
+}
+
+/* ============================================================ state handling */
+function toast(msg,good){ const d=document.createElement('div'); d.className='toast glass'+(good?' good':''); d.textContent=msg; $('#toasts').appendChild(d); setTimeout(()=>{ d.classList.add('bye'); setTimeout(()=>d.remove(),400); },3400); }
+function onState(S){
+  const prev=state;
+  if (S.status==='lobby' || !S.order){ state=S; hadGameState=false; syncTokens(null); syncProps(null); showView('lobby'); renderLobby(); return; }
+  state=S;
+  syncTokens(S);
+  if (!hadGameState){
+    hadGameState=true; seenEv=S.ev?.seq??0;
+    syncProps(S);
+    for (const id of S.order){ const t=tokens[id]; if (t){ t.position.copy(slotFor(S,id)); t.rotation.y=facing(S.players[id].pos); } }
+    if (S.lastRoll) dice.forEach((d,k)=>d.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(Yax,k?.3:-.3).multiply(TOPQ[S.lastRoll.d[k]])));
+    placeTokens(S); showView('game'); renderGame(true); refreshModal();
+    cam.zoom=2.6; cam.phi=.35; startWarp(700); sfx.play('warp');
+    return;
+  }
+  const evs = S.ev && S.ev.seq!==seenEv ? S.ev.list.slice() : [];
+  seenEv=S.ev?.seq??seenEv;
+  if (mode==='online' && S.trade && S.trade.to===myId && (!prev?.trade || prev.trade.seq!==S.trade.seq)){ toast(`${nm(S,S.trade.from)} bietet dir einen Handel an.`,true); sfx.play('turn'); }
+  if (evs.length){
+    animating=true; updateBusy(); highlightTile();
+    animQ=animQ.then(()=>playEvents(evs,S)).catch(e=>console.error(e)).then(()=>{ animating=false; syncProps(state); placeTokens(state); highlightTile(); renderGame(); refreshModal(); });
+  } else if (!animating){ syncProps(S); placeTokens(S); highlightTile(); renderGame(); refreshModal(); }
+}
+async function playEvents(evs,S){
+  for (const e of evs){
+    switch (e.t){
+      case 'dice': sfx.play('dice'); await animateDice(e.d); await wait(120); break;
+      case 'move': await flyMove(e); break;
+      case 'gain': { const p=tokPos(e.id); floatText('+'+e.amt,'#ffd27a',p); burst(p,'#ffc35a',16,1.3); chipDelta(e.id,e.amt); sfx.play('coin'); await wait(380); break; }
+      case 'pay': {
+        const a=tokPos(e.from), b=e.to?tokPos(e.to):BANK_POS.clone();
+        floatText('−'+e.amt,'#ff7a7f',a); chipDelta(e.from,-e.amt); sfx.play('pay');
+        await beam(a,b,e.to?S.players[e.to].color:'#5ab8ff');
+        if (e.to){ floatText('+'+e.amt,'#7dffb0',b); chipDelta(e.to,e.amt); }
+        sfx.play('coin'); await wait(150); break;
+      }
+      case 'card': showCard(e,S); sfx.play('card'); await wait(1300); break;
+      case 'wheel': await showWheel(e,S); break;
+      case 'buy': { const c=S.players[e.id].color; syncProp(e.i,S); ringWave(tilePoint(e.i,0,0,0.04),c); burst(tilePoint(e.i,0,0.6,0.15),c,26,1.5); floatText('−'+e.price,'#ffb38a',tokPos(e.id)); chipDelta(e.id,-e.price); sfx.play('buy'); await wait(550); break; }
+      case 'build': case 'sell': { syncProp(e.i,S); const p=tilePoint(e.i,0,0.6,0.2); burst(p,e.t==='build'?'#ffc35a':'#ffffff',22,1.4); ringWave(tilePoint(e.i,0,0,0.04),e.t==='build'?'#4fe08a':'#ffffff'); floatText((e.t==='build'?'−':'+')+e.amt,e.t==='build'?'#ffb38a':'#ffd27a',p); chipDelta(e.id,e.t==='build'?-e.amt:e.amt); sfx.play(e.t==='build'?'build':'coin'); await wait(300); break; }
+      case 'mort': case 'unmort': { syncProp(e.i,S); const p=tilePoint(e.i,0,0,0.2); floatText((e.t==='mort'?'+':'−')+e.amt,e.t==='mort'?'#ffd27a':'#ffb38a',p); chipDelta(e.id,e.t==='mort'?e.amt:-e.amt); sfx.play(e.t==='mort'?'coin':'build'); await wait(250); break; }
+      case 'free': { const p=tokPos(e.id); ringWave(V3(p.x,0.04,p.z),'#5ab8ff'); sfx.play('buy'); await wait(300); break; }
+      case 'bankrupt': { const t=tokens[e.id]; if (t){ const p=t.position.clone(); burst(p,'#ff9a4a',60,3); burst(p,'#ffffff',30,2); sfx.play('boom'); await tween(500,x=>{ const s=1-EASE.inCubic(x); t.scale.set(s,s,s); }); t.visible=false; t.scale.set(1,1,1); } await wait(300); break; }
+      case 'offer': sfx.play('tap'); break;
+      case 'trade': { syncProps(S); const a=tokPos(e.from), b=tokPos(e.to); sfx.play('buy'); await Promise.all([beam(a,b,S.players[e.from].color),beam(b,a,S.players[e.to].color)]); chipDelta(e.from,e.a); chipDelta(e.to,-e.a); break; }
+      case 'turn': if (mode==='local' || e.id===myId){ sfx.play('turn'); if (mode==='online') toast('Du bist am Zug.',true); } break;
+      case 'win': sfx.play('win'); if (e.id && tokens[e.id]){ const p=tokens[e.id].position; for (let k=0;k<4;k++){ setTimeout(()=>burst(p.clone().add(V3(0,.5,0)),COLORS[k],40,2.6),k*250); } } break;
+    }
+  }
+}
+async function commit(fn){
+  if (!state || writing) return;
+  const S=structuredClone(state);
+  S.ev={seq:(state.ev?.seq||0)+1,list:[]};
+  if (fn(S)===false){ sfx.play('error'); return; }
+  S.rev=(S.rev||0)+1;
+  if (mode==='local'){ store.set('sb-local',S); onState(S); return; }
+  if (isHost){ hostAccept(S); return; }
+  if (!hostConn || !hostConn.open){ sfx.play('error'); toast('Keine Verbindung zum Gastgeber – einen Moment.'); return; }
+  writing=true; updateBusy();
+  try { hostConn.send({type:'set',state:S}); } catch(e){ writing=false; updateBusy(); toast('Senden fehlgeschlagen. Bitte noch einmal.'); return; }
+  clearTimeout(writeTimer); writeTimer=setTimeout(()=>{ if (writing){ writing=false; updateBusy(); toast('Der Gastgeber antwortet nicht.'); } },7000);
+}
+let cardTimer=null;
+function showCard(c,S){
+  const pop=$('#cardPop'), card=CARDS[c.deck][c.k];
+  pop.innerHTML=`<div class="holo glass ${c.deck==='schmuggel'?'smug':''}" role="dialog" aria-label="${esc(DECK_NAME[c.deck])}"><div class="deck"><i></i>${esc(DECK_NAME[c.deck])} · für ${esc(nm(S,c.who))}</div><p>${esc(card.x)}</p><small>Tippen zum Schließen</small></div>`;
+  pop.hidden=false; clearTimeout(cardTimer); cardTimer=setTimeout(hideCard,5200);
+}
+const WHEEL_COL={bad:['#4a1820','#ff6b70'],good:['#123a28','#4fe08a'],zero:['#232833','#b3bccc'],jackpot:['#4a3510','#ffc35a']};
+function showWheel(e,S){
+  return new Promise(res=>{
+    hideCard();
+    const box=$('#wheel'), N=e.segs.length, seg=360/N, R=100;
+    const pt=a=>{ const r=a*Math.PI/180; return [(R*Math.sin(r)).toFixed(2),(-R*Math.cos(r)).toFixed(2)]; };
+    const paths=e.segs.map((x,k)=>{ const [x0,y0]=pt(k*seg), [x1,y1]=pt((k+1)*seg), c=WHEEL_COL[x.c]||WHEEL_COL.zero, mid=(k+.5)*seg;
+      return `<g class="wseg" data-k="${k}"><path d="M0 0L${x0} ${y0}A${R} ${R} 0 0 1 ${x1} ${y1}Z" fill="${c[0]}" stroke="${c[1]}" stroke-opacity=".5" stroke-width="1"/><text transform="rotate(${mid}) translate(0 -68)" fill="${c[1]}" text-anchor="middle" dominant-baseline="middle" font-size="${x.l.length>5?12:16}" font-weight="700">${esc(x.l)}</text></g>`; }).join('');
+    box.innerHTML=`<div class="wheel-card glass" role="dialog" aria-label="Glücksrad"><div class="eyebrow" style="color:var(--gold)">Glücksrad · ${esc(nm(S,e.id))}</div><h3>${esc(e.title)}</h3><div class="wheel-wrap"><svg class="wheel-svg" viewBox="-108 -108 216 216" aria-hidden="true"><circle r="106" fill="#0b0e14" stroke="rgba(255,255,255,.15)"/>${paths}<circle r="20" fill="#14171f" stroke="#ffc35a" stroke-width="2"/><circle r="6" fill="#ffc35a"/></svg><div class="wheel-ptr"></div></div><div class="wheel-res" id="wheelRes">&nbsp;</div></div>`;
+    box.hidden=false;
+    const svg=box.querySelector('.wheel-svg');
+    const target=360*6-(e.k+.5)*seg+(Math.random()-.5)*seg*.6, dur=REDUCED?300:4300, st=performance.now(); let last=-1;
+    const done=()=>{
+      const x=e.segs[e.k]; box.querySelector(`.wseg[data-k="${e.k}"]`)?.classList.add('win');
+      const r=$('#wheelRes'); r.textContent=x.l; r.className='wheel-res '+x.c;
+      sfx.play(x.c==='bad'?'pay':x.c==='zero'?'turn':x.c==='jackpot'?'win':'buy');
+      setTimeout(()=>{ box.firstElementChild?.classList.add('bye'); setTimeout(()=>{ box.hidden=true; box.innerHTML=''; res(); },380); },1900);
+    };
+    const step=now=>{ const t=Math.min(1,(now-st)/dur), ang=target*(1-Math.pow(1-t,4)); svg.style.transform=`rotate(${ang}deg)`; const cur=Math.floor((((-ang)%360)+360)%360/seg); if (cur!==last){ last=cur; sfx.play('tick'); } if (t<1) requestAnimationFrame(step); else done(); };
+    requestAnimationFrame(step);
+  });
+}
+function hideCard(){ const pop=$('#cardPop'), h=pop.querySelector('.holo'); if (!h || pop.hidden) return; h.classList.add('bye'); setTimeout(()=>{ pop.hidden=true; },380); }
+$('#cardPop').onclick=hideCard;
+
+/* ============================================================ online plumbing (peer-to-peer)
+   The player who opens the hangar is the host: the host keeps the true game state,
+   checks every change (each must raise rev by exactly one) and sends it to everyone. */
+const PEER_PREFIX='sternenbarone-v1-';
+const PEER_OPTS=Object.assign({debug:0,config:{iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:global.stun.twilio.com:3478'}]}},window.SB_PEER||{});
+let peer=null, isHost=false, hostConn=null, conns=new Map(), retryTimer=null, joinTimer=null, writeTimer=null, lostToast=false;
+function getPid(){ let id=store.get('sb-pid'); if (!id){ id='p'+Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>b.toString(16).padStart(2,'0')).join(''); store.set('sb-pid',id); } return id; }
+function getSaved(){ const s=store.get('sb-online'); if (!s) return null; return typeof s==='string' ? {code:s,host:false} : s; }
+function genCode(){ const A='ABCDEFGHJKLMNPQRSTUVWXYZ'; let s=''; const r=new Uint32Array(4); crypto.getRandomValues(r); for (const x of r) s+=A[x%A.length]; return s; }
+function pilotName(){ const v=($('#inName')?.value||store.get('sb-name')||'').trim().slice(0,16); return v || 'Pilot'; }
+function detach(){
+  clearTimeout(retryTimer); clearTimeout(joinTimer); clearTimeout(writeTimer);
+  const h=hostConn; hostConn=null; if (h) try { h.close(); } catch(e){}
+  for (const c of conns.values()) try { c.close(); } catch(e){}
+  conns.clear();
+  if (peer) try { peer.destroy(); } catch(e){}
+  peer=null; isHost=false; lostToast=false; writing=false;
+}
+function openHostPeer(code){
+  return new Promise((res,rej)=>{
+    const p=new Peer(PEER_PREFIX+code,PEER_OPTS);
+    const fail=e=>{ try { p.destroy(); } catch(_){} rej(e); };
+    p.once('open',()=>{ p.off('error',fail); res(p); });
+    p.once('error',fail);
+  });
+}
+function wireHostPeer(p){
+  p.on('connection',conn=>{
+    conn.on('data',msg=>hostHandle(conn,msg));
+    conn.on('close',()=>hostDrop(conn));
+    conn.on('error',()=>hostDrop(conn));
+  });
+  p.on('disconnected',()=>{ if (peer===p && !p.destroyed) setTimeout(()=>{ try { if (!p.destroyed) p.reconnect(); } catch(e){} },1500); });
+  p.on('error',e=>{ if (peer===p && ['network','server-error','socket-error','socket-closed'].includes(e.type)) toast('Der Vermittlungsdienst hakt gerade – neue Spieler können kurz nicht beitreten.'); });
+}
+function hostSend(conn,msg){ try { if (conn.open) conn.send(msg); } catch(e){} }
+function hostBroadcast(msg){ for (const c of conns.values()) hostSend(c,msg); }
+function hostAccept(S){ store.set('sb-host-'+S.code,S); onState(S); hostBroadcast({type:'state',state:S}); }
+function hostHandle(conn,msg){
+  if (!msg || typeof msg!=='object' || !state || !isHost) return;
+  if (msg.type==='hello'){
+    conn.pid=String(msg.id||'').slice(0,40); conns.set(conn.peer,conn);
+    if (state.status==='lobby'){
+      const lobby=state.lobby||{}, n=Object.values(lobby).filter(Boolean).length;
+      if (!lobby[conn.pid] && n>=6){ hostSend(conn,{type:'error',msg:'Dieser Hangar ist voll.'}); hostSend(conn,{type:'state',state}); return; }
+      const S=structuredClone(state); S.lobby=S.lobby||{};
+      S.lobby[conn.pid]={name:String(msg.name||'Pilot').slice(0,16),ship:clamp(Math.floor(+msg.ship||0),0,5),t:lobby[conn.pid]?.t||Date.now()};
+      S.rev=(S.rev||0)+1; hostAccept(S);
+    } else hostSend(conn,{type:'state',state});
+  } else if (msg.type==='set'){
+    const S=msg.state;
+    if (!S || typeof S!=='object' || S.code!==state.code || S.rev!==(state.rev||0)+1){ hostSend(conn,{type:'reject'}); hostSend(conn,{type:'state',state}); return; }
+    hostAccept(S);
+  } else if (msg.type==='leave') hostRemove(conn.pid);
+}
+function hostRemove(pid){ if (!pid || !state || !isHost || state.status!=='lobby' || !state.lobby?.[pid] || pid===myId) return; const S=structuredClone(state); S.lobby[pid]=null; S.rev=(S.rev||0)+1; hostAccept(S); }
+function hostDrop(conn){ if (conns.get(conn.peer)!==conn) return; conns.delete(conn.peer); hostRemove(conn.pid); }
+
+function connectToHost(code){
+  clearTimeout(retryTimer);
+  const go=()=>{
+    if (mode!=='online' || isHost || gameCode!==code) return;
+    const old=hostConn; hostConn=null; if (old) try { old.close(); } catch(e){}
+    const conn=peer.connect(PEER_PREFIX+code,{reliable:true,serialization:'json'});
+    hostConn=conn;
+    conn.on('open',()=>{ if (conn!==hostConn) return; if (lostToast){ toast('Wieder verbunden.',true); lostToast=false; } conn.send({type:'hello',id:myId,name:pilotName(),ship:pickedShip}); });
+    conn.on('data',msg=>{ if (conn===hostConn) clientHandle(msg); });
+    conn.on('close',()=>{ if (conn===hostConn) clientLost(code); });
+    conn.on('error',()=>{ if (conn===hostConn) clientLost(code); });
+  };
+  if (!peer || peer.destroyed){
+    const p=new Peer(PEER_OPTS); peer=p;
+    p.on('open',go);
+    p.on('error',e=>{ if (peer!==p) return; if (e.type==='peer-unavailable') clientUnavailable(code); else if (['network','server-error','socket-error','socket-closed','disconnected'].includes(e.type)) clientLost(code); });
+    p.on('disconnected',()=>{ if (peer===p && !p.destroyed) setTimeout(()=>{ try { if (!p.destroyed) p.reconnect(); } catch(e){} },1500); });
+  } else if (peer.open) go(); else peer.once('open',go);
+}
+function clientUnavailable(code){
+  if (!state){ clearTimeout(joinTimer); toast(`Kein offener Hangar mit dem Code ${code}. Ist der Gastgeber online?`); store.del('sb-online'); goMenu(); }
+  else clientLost(code);
+}
+function clientLost(code){
+  if (mode!=='online' || isHost || gameCode!==code) return;
+  if (!lostToast && state){ toast('Verbindung zum Gastgeber unterbrochen – verbinde neu …'); lostToast=true; }
+  writing=false; updateBusy();
+  clearTimeout(retryTimer); retryTimer=setTimeout(()=>{ if (mode==='online' && !isHost && gameCode===code) connectToHost(code); },3000);
+}
+function clientHandle(msg){
+  if (!msg || typeof msg!=='object') return;
+  if (msg.type==='state' && msg.state && typeof msg.state==='object'){ clearTimeout(joinTimer); clearTimeout(writeTimer); writing=false; onState(msg.state); updateBusy(); }
+  else if (msg.type==='error') toast(String(msg.msg||'Fehler'));
+  else if (msg.type==='reject'){ writing=false; updateBusy(); sfx.play('error'); toast('Das kam nicht durch – jemand war schneller. Bitte noch einmal.'); }
+  else if (msg.type==='closed'){ toast('Der Gastgeber hat den Hangar aufgelöst.'); store.del('sb-online'); goMenu(); }
+}
+async function createOnline(){
+  if (!P2P) return toast('Die Online-Verbindung konnte nicht geladen werden. Prüfe deine Internetverbindung.');
+  const name=pilotName(); store.set('sb-name',name);
+  detach(); showView('loading'); $('#loadingHint').textContent='Hangar wird eröffnet …';
+  let p=null, code=null;
+  for (let k=0;k<4 && !p;k++){
+    code=genCode();
+    try { p=await openHostPeer(code); }
+    catch(e){ if (e.type!=='unavailable-id'){ toast('Der Vermittlungsdienst ist gerade nicht erreichbar. Versuch es gleich noch einmal.'); goMenu(); return; } }
+  }
+  if (!p){ toast('Kein freier Code gefunden. Versuch es noch einmal.'); goMenu(); return; }
+  peer=p; isHost=true; mode='online'; gameCode=code; wireHostPeer(p);
+  store.set('sb-online',{code,host:true});
+  state=null; hadGameState=false;
+  const now=Date.now();
+  hostAccept({v:2,code,host:myId,status:'lobby',createdAt:now,lobby:{[myId]:{name,ship:pickedShip,t:now}},rev:0});
+}
+function joinOnline(code){
+  code=(code||'').toUpperCase().replace(/[^A-Z]/g,'');
+  if (code.length!==4) return toast('Der Code hat vier Buchstaben.');
+  if (!P2P) return toast('Die Online-Verbindung konnte nicht geladen werden. Prüfe deine Internetverbindung.');
+  const name=pilotName(); store.set('sb-name',name);
+  if (mode==='online' && !isHost && gameCode===code && hostConn && hostConn.open){ hostConn.send({type:'hello',id:myId,name,ship:pickedShip}); return; }
+  detach(); mode='online'; isHost=false; gameCode=code; state=null; hadGameState=false;
+  store.set('sb-online',{code,host:false});
+  showView('loading'); $('#loadingHint').textContent=`Suche den Hangar ${code} …`;
+  joinTimer=setTimeout(()=>{ if (!state && gameCode===code) $('#loadingHint').textContent='Das dauert länger als üblich. Ist der Gastgeber online?'; },12000);
+  connectToHost(code);
+}
+async function resumeOnline(){
+  const sv=getSaved(); if (!sv) return;
+  if (!sv.host) return joinOnline(sv.code);
+  const S=store.get('sb-host-'+sv.code);
+  if (!S){ store.del('sb-online'); toast('Dieses Spiel ist auf diesem Gerät nicht mehr gespeichert.'); return renderMenu(); }
+  detach(); showView('loading'); $('#loadingHint').textContent=`Hangar ${sv.code} wird wieder geöffnet …`;
+  let p;
+  try { p=await openHostPeer(sv.code); }
+  catch(e){ toast(e && e.type==='unavailable-id' ? 'Der Code ist noch belegt. Versuch es in einer Minute noch einmal.' : 'Der Vermittlungsdienst ist gerade nicht erreichbar.'); goMenu(); return; }
+  peer=p; isHost=true; mode='online'; gameCode=sv.code; wireHostPeer(p);
+  state=null; hadGameState=false; hostAccept(S);
+}
+function goMenu(){ detach(); mode=null; state=null; hadGameState=false; selectedTile=null; follow.id=null; syncTokens(null); syncProps(null); highlightTile(); closeModal(); showView('menu'); }
+function leaveLobby(){
+  if (isHost){ hostBroadcast({type:'closed'}); store.del('sb-host-'+gameCode); }
+  else if (hostConn && hostConn.open){ try { hostConn.send({type:'leave'}); } catch(e){} }
+  store.del('sb-online'); setTimeout(goMenu,200);
+}
+function startOnline(){
+  const S=state; if (!S || !isHost) return;
+  const list=Object.entries(S.lobby||{}).filter(([,v])=>v).sort((a,b)=>a[1].t-b[1].t).slice(0,6).map(([id,v])=>({id,name:v.name,ship:v.ship}));
+  if (list.length<2) return toast('Mindestens zwei Piloten nötig.');
+  const G=newGameState(list,{v:2,code:S.code,host:S.host,createdAt:S.createdAt,lobby:S.lobby});
+  G.rev=(S.rev||0)+1; hostAccept(G);
+}
+addEventListener('beforeunload',e=>{ if (isHost && state && state.status==='playing'){ e.preventDefault(); e.returnValue=''; } });
+
+/* ============================================================ UI */
+const VIEWS=['menu','loading','lobby','game'];
+function showView(v){
+  const changed=view!==v; view=v;
+  VIEWS.forEach(x=>$('#v-'+x).classList.toggle('is-hidden',x!==v));
+  if (v==='menu' && changed) renderMenu();
+  $('#btnCam').hidden = v!=='game';
+  $('#btnExit').hidden = v==='menu';
+  const tag=$('#gameTag'); tag.hidden = !(v==='game'||v==='lobby'); tag.textContent = mode==='local' ? 'LOKAL' : (gameCode||'');
+  if (v==='menu'){ goal.zoom=1.08; goal.phi=.98; camMode='orbit'; }
+  if (v==='game' && changed){ goal.zoom=1; goal.phi=.9; }
+  if (changed) dockLast='';
+  requestAnimationFrame(layoutGoal);
+}
+const ICON_LOW='<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6"/></svg>';
+function renderSoundBtn(){
+  const muted=!sfx.on||sfx.vol<=0, icon=muted?ICON.mute:sfx.vol<45?ICON_LOW:ICON.sound, v=muted?0:Math.round(sfx.vol);
+  $('#btnSound').innerHTML=icon; $('#volMute').innerHTML=icon; $('#volMute').setAttribute('aria-label',muted?'Ton einschalten':'Stumm schalten');
+  const r=$('#volRange'); r.value=v; r.style.setProperty('--p',v+'%'); $('#volVal').textContent=muted?'aus':v;
+}
+let volOpen=false, volTick=0;
+function setVolOpen(o){ volOpen=o; $('#volPop').hidden=!o; $('#btnSound').setAttribute('aria-expanded',String(o)); }
+$('#btnRules').innerHTML=ICON.help; $('#btnExit').innerHTML=ICON.exit; $('#btnCam').innerHTML=ICON.top; renderSoundBtn();
+$('#btnSound').onclick=()=>{ sfx.init(); setVolOpen(!volOpen); };
+$('#volMute').onclick=()=>{ sfx.init(); if (!sfx.on||sfx.vol<=0){ sfx.on=true; sfx.setVol(sfx.vol>0?sfx.vol:60); } else sfx.on=false; store.set('sb-sound',sfx.on); renderSoundBtn(); sfx.play('tap'); };
+$('#volRange').addEventListener('input',e=>{ const v=+e.target.value; sfx.init(); sfx.on=v>0; store.set('sb-sound',sfx.on); sfx.setVol(v); renderSoundBtn(); const now=performance.now(); if (now-volTick>80){ volTick=now; sfx.play('tick'); } });
+$('#volRange').addEventListener('change',()=>sfx.play('coin'));
+document.addEventListener('pointerdown',e=>{ if (volOpen && !e.target.closest('#volPop,#btnSound')) setVolOpen(false); });
+document.addEventListener('keydown',e=>{ if (e.key==='Escape' && volOpen) setVolOpen(false); });
+$('#btnRules').onclick=()=>{ sfx.play('tap'); openModal('rules'); };
+$('#btnExit').onclick=()=>{ sfx.play('tap'); if (isHost && state && state.status==='playing') toast('Spiel pausiert. Über „Weiterspielen“ im Menü öffnest du es wieder.'); goMenu(); };
+$('#btnCam').onclick=()=>{ sfx.play('tap'); if (camMode==='top'){ camMode='orbit'; goal.phi=.9; goal.zoom=1; $('#btnCam').innerHTML=ICON.top; } else { camMode='top'; goal.phi=.08; goal.theta=Math.round(goal.theta/(Math.PI/2))*(Math.PI/2); goal.zoom=1.02; $('#btnCam').innerHTML=ICON.cam; } };
+
+function renderMenu(){
+  const savedOnline=getSaved(), savedLocal=store.get('sb-local');
+  const resume = savedOnline || (savedLocal&&savedLocal.status==='playing');
+  $('#v-menu').innerHTML=`
+    <div class="hero">
+      <div class="kicker">Ein Handelsspiel zwischen den Sternen</div>
+      <h1>Sternenbarone.</h1>
+      <p class="sub">Kaufe Welten. Kontrolliere die Sprungtore. Lass deine Freunde Landegebühren zahlen.</p>
+    </div>
+    <div class="menu-card glass">
+      ${resume?`<div class="row" style="flex-wrap:wrap">${savedOnline?`<button class="pill primary small" data-act="resumeOnline">Weiterspielen · ${esc(savedOnline.code)}${savedOnline.host?' (Gastgeber)':''}</button>`:''}${savedLocal&&savedLocal.status==='playing'?`<button class="pill small" data-act="resumeLocal">Lokales Spiel fortsetzen</button>`:''}</div><div class="divider"></div>`:''}
+      <div class="seg" role="tablist" data-tab="${menuTab}"><span class="thumb"></span><button role="tab" data-act="tab" data-tab="online" aria-selected="${menuTab==='online'}">Online</button><button role="tab" data-act="tab" data-tab="local" aria-selected="${menuTab==='local'}">An einem Gerät</button></div>
+      <div id="paneBox"></div>
+      <button class="textbtn" data-act="rules">So wird gespielt</button>
+    </div>`;
+  renderPane();
+}
+function renderPane(){
+  const box=$('#paneBox'); if (!box) return;
+  if (menuTab==='online'){
+    box.innerHTML=`<div class="pane">
+      <div class="field"><label class="lbl" for="inName">Pilotenname</label><input id="inName" maxlength="16" autocomplete="off" value="${esc(store.get('sb-name')||'')}" placeholder="z. B. Kira"></div>
+      <div class="field"><span class="lbl">Dein Schiff</span><div class="ships" id="shipPick">${SHIPS.map((s,k)=>`<button type="button" class="ship" data-act="ship" data-k="${k}" aria-pressed="${k===pickedShip}" aria-label="${esc(s.name)}" title="${esc(s.name)}">${shipSvg(k)}</button>`).join('')}</div><div class="shipname" id="shipName">${esc(SHIPS[pickedShip].name)}</div></div>
+      <button class="pill primary wide" data-act="create" ${P2P?'':'disabled'}>Hangar erstellen</button>
+      <div class="row"><input id="inCode" maxlength="4" placeholder="Code" autocomplete="off" aria-label="Spielcode" style="text-transform:uppercase;letter-spacing:.3em;font-family:var(--mono)"><button class="pill" data-act="join" ${P2P?'':'disabled'}>Beitreten</button></div>
+      <div class="lobbies" id="lobbyList"></div>
+      <p class="hint" id="onlineNote"></p>
+    </div>`;
+    renderLobbyList();
+  } else {
+    const names=store.get('sb-localNames')||[], ships=store.get('sb-localShips')||[];
+    box.innerHTML=`<div class="pane">
+      <div class="row" style="justify-content:space-between"><span class="lbl">Piloten</span><div class="stepper"><button class="ic" data-act="cnt" data-d="-1" aria-label="Weniger Piloten">−</button><output>${localCount}</output><button class="ic" data-act="cnt" data-d="1" aria-label="Mehr Piloten">+</button></div></div>
+      <div class="crew">${Array.from({length:localCount},(_,k)=>`<div class="row"><span class="cdot" style="--c:${COLORS[k]}"></span><input id="ln${k}" maxlength="16" value="${esc(names[k]||'Pilot '+(k+1))}" aria-label="Name Pilot ${k+1}"><select id="ls${k}" aria-label="Schiff Pilot ${k+1}">${SHIPS.map((s,j)=>`<option value="${j}" ${j===(ships[k]??k%6)?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>`).join('')}</div>
+      <p class="hint">Ihr sitzt zusammen und reicht das Gerät weiter. Funktioniert immer, auch ohne Anmeldung.</p>
+      <button class="pill primary wide" data-act="startLocal">Spiel starten</button>
+    </div>`;
+  }
+}
+function renderLobbyList(){
+  const el=$('#lobbyList'); if (el) el.innerHTML='';
+  const note=$('#onlineNote'); if (!note) return;
+  note.textContent = !capsReady ? 'Verbindung wird vorbereitet …' : P2P ? 'Jeder spielt auf seinem eigenen Gerät – ohne Konto. Wer den Hangar erstellt, ist Gastgeber und lässt die Seite während des Spiels offen.' : 'Die Online-Verbindung konnte nicht geladen werden. Prüfe deine Internetverbindung und lade die Seite neu.';
+}
+let localCount=store.get('sb-localCount')||3;
+function saveLocal(){ const n=[], s=[]; for (let k=0;k<6;k++){ const el=$('#ln'+k), sl=$('#ls'+k); if (el) n.push(el.value); if (sl) s.push(+sl.value); } if (n.length){ const old=store.get('sb-localNames')||[]; store.set('sb-localNames',n.concat(old.slice(n.length))); } if (s.length){ const old=store.get('sb-localShips')||[]; store.set('sb-localShips',s.concat(old.slice(s.length))); } }
+function startLocal(){
+  saveLocal();
+  const list=Array.from({length:localCount},(_,k)=>({id:'p'+(k+1),name:($('#ln'+k).value.trim()||'Pilot '+(k+1)).slice(0,16),ship:+$('#ls'+k).value}));
+  const S=newGameState(list,{v:2,code:'LOKAL',host:null,createdAt:Date.now()});
+  mode='local'; gameCode=null; hadGameState=false; store.set('sb-local',S); onState(S);
+}
+function renderLobby(){
+  const S=state, list=Object.entries(S.lobby||{}).filter(([,v])=>v).sort((a,b)=>a[1].t-b[1].t);
+  const host=S.host===myId, inIt=list.some(([id])=>id===myId);
+  $('#lobbyCard').innerHTML=`
+    <div><div class="eyebrow">Hangar</div><h2 style="margin:4px 0 0;font-size:26px;font-weight:700;letter-spacing:-.03em">Warten auf die Crew.</h2></div>
+    <div class="code" id="codeText">${esc(S.code)}</div>
+    <div class="row"><button class="pill small" data-act="copyCode">Code kopieren</button><span class="hint">Freunde öffnen diese Seite, wählen „Online“ und geben den Code ein.</span></div>
+    <ul class="crewlist">${list.map(([id,v],k)=>`<li style="--c:${COLORS[k]||'#888'}">${shipSvg(v.ship)}<span class="who">${esc(v.name)} ${id===myId?'<small>· du</small>':''}</span><small>${id===S.host?'Spielleitung':esc(SHIPS[v.ship]?.name||'')}</small></li>`).join('')}</ul>
+    ${host&&isHost?`<button class="pill primary wide" data-act="startOnline" ${list.length<2?'disabled':''}>${list.length<2?'Warte auf Mitspieler …':`Spiel starten · ${list.length} Piloten`}</button>`:inIt?`<p class="hint">Die Spielleitung startet, sobald alle da sind.</p>`:`<button class="pill primary wide" data-act="joinCode" data-code="${esc(S.code)}">Diesem Hangar beitreten</button>`}
+    ${inIt?`<button class="pill danger small" data-act="leaveLobby" style="align-self:flex-start">${host?'Hangar auflösen':'Hangar verlassen'}</button>`:''}`;
+}
+
+/* players (keyed, with counting money) */
+const chips=new Map(); let chipsKey='';
+function setMoney(id,to){
+  const c=chips.get(id); if (!c || c.to===to) return;
+  const from=c.cur, st=performance.now(), dur=REDUCED?1:750; c.to=to;
+  if (to!==from){ c.el.classList.toggle('up',to>from); c.el.classList.toggle('down',to<from); clearTimeout(c.flash); c.flash=setTimeout(()=>c.el.classList.remove('up','down'),1100); }
+  const step=now=>{ if (c.to!==to) return; const t=Math.min(1,(now-st)/dur); c.cur=from+(to-from)*EASE.outCubic(t); c.moneyEl.textContent=fmt(c.cur); c.moneyEl.classList.toggle('neg',c.cur<0); if (t<1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function shortName(i){ const sp=SPACES[i]; if (sp.t==='gate') return 'Tor '+sp.name.split(' ').pop(); if (sp.t==='util') return i===12?'Reaktor':'Mine'; return sp.name.split(' ').pop(); }
+function propTags(S,id){
+  return Object.keys(S.props).map(Number).filter(i=>S.props[i].owner===id).sort((a,b)=>a-b).map(i=>{
+    const sp=SPACES[i], pr=S.props[i], full=sp.t==='prop'&&ownsGroup(S,id,sp.g);
+    const lvl=pr.houses===5?'<b class="cit">Z</b>':pr.houses?`<b>${pr.houses}</b>`:'';
+    return `<button type="button" class="ptag${full?' full':''}${pr.mort?' mort':''}" style="--g:${spaceColor(i)}" data-act="tile" data-i="${i}" title="${esc(sp.name)}${pr.mort?' (verpfändet)':''}"><i></i><span class="l">${esc(sp.name)}</span><span class="s">${esc(shortName(i))}</span>${lvl}</button>`;
+  }).join('');
+}
+function chipDelta(id,d){ const c=chips.get(id); if (c) setMoney(id,c.to+d); }
+function renderPlayers(S){
+  const box=$('#players'), key=(mode||'')+(S.code||'')+S.order.join(',');
+  if (key!==chipsKey){ box.innerHTML=''; chips.clear(); chipsKey=key; }
+  S.order.forEach((id,idx)=>{
+    const p=S.players[id]; let c=chips.get(id);
+    if (!c){
+      const el=document.createElement('div'); el.className='chip glass'; el.style.setProperty('--c',p.color); el.style.animationDelay=(idx*70)+'ms';
+      el.innerHTML=`<span class="chip-ic">${shipSvg(p.ship)}</span><div style="min-width:0"><div class="chip-nm"></div><div class="chip-meta"></div></div><div class="chip-money"></div><div class="chip-props"></div>`;
+      box.appendChild(el);
+      c={el,nmEl:el.querySelector('.chip-nm'),metaEl:el.querySelector('.chip-meta'),moneyEl:el.querySelector('.chip-money'),propsEl:el.querySelector('.chip-props'),propsHtml:'',cur:p.money,to:p.money};
+      c.moneyEl.textContent=fmt(p.money); chips.set(id,c);
+    }
+    const owned=Object.keys(S.props).filter(i=>S.props[i].owner===id).length;
+    const tags=[]; if (p.out) tags.push('bankrott'); if (p.jail) tags.push('Arrestbake'); if (p.jailCards) tags.push(p.jailCards+'× Freikarte');
+    c.el.classList.toggle('active',S.status==='playing'&&curId(S)===id);
+    c.el.classList.toggle('out',p.out);
+    c.nmEl.textContent=p.name+(mode==='online'&&id===myId?' · du':'');
+    c.metaEl.textContent=[`${owned} ${owned===1?'Welt':'Welten'}`,...tags].join(' · ');
+    const ph=propTags(S,id); if (ph!==c.propsHtml){ c.propsHtml=ph; c.propsEl.innerHTML=ph; }
+    setMoney(id,p.money);
+  });
+}
+let dockLast='';
+function updateBusy(){ $('#dock').classList.toggle('busy',writing||animating); }
+function tradeSummary(S,t){
+  const list=ids=>ids.map(i=>esc(SPACES[i].name)).join(', ');
+  const side=(props,money)=>[list(props),money?fmt(money):''].filter(Boolean).join(' + ')||'nichts';
+  return `<div class="trade-sum"><div><b>${esc(nm(S,t.from))}</b> gibt ${side(t.give.props,t.give.money)}</div><div><b>${esc(nm(S,t.to))}</b> gibt ${side(t.get.props,t.get.money)}</div></div>`;
+}
+function dockHtml(S){
+  const tools=(canTrade)=>`<div class="d-tools"><button class="tool" data-act="manage">${ICON.grid}<span>Besitz</span></button><button class="tool" data-act="trade" ${canTrade?'':'disabled'}>${ICON.swap}<span>Handel</span></button><button class="tool" data-act="log">${ICON.list}<span>Logbuch</span></button></div>`;
+  if (S.status==='over'){
+    return `<div><div class="winner">${S.winner?esc(nm(S,S.winner))+' ist Sternenbaron.':'Spiel beendet.'}</div><div class="d-sub">Alle anderen sind bankrott.</div></div><div class="d-actions"><button class="pill primary" data-act="menu">Zum Hauptmenü</button>${mode==='online'&&S.host===myId?'<button class="pill danger small" data-act="deleteGame">Spiel löschen</button>':''}</div>`;
+  }
+  const id=curId(S), p=S.players[id], mine=isMe(id);
+  const spectator = mode==='online' && !S.players[myId];
+  const whoTitle = mode==='local' ? `<span class="c" style="--c:${p.color}">${esc(p.name)}</span> ist am Zug.` : mine ? 'Du bist am Zug.' : `<span class="c" style="--c:${p.color}">${esc(p.name)}</span> ist am Zug.`;
+  if (S.trade){
+    const t=S.trade, iAmTarget=mode==='local'?true:t.to===myId, iAmFrom=mode==='online'&&t.from===myId;
+    let h=`<div><div class="d-title">Handelsangebot an ${esc(nm(S,t.to))}</div>${tradeSummary(S,t)}</div><div class="d-actions">`;
+    if (iAmTarget) h+=`<button class="pill primary" data-act="tradeYes">${mode==='local'?esc(nm(S,t.to))+' nimmt an':'Annehmen'}</button><button class="pill danger" data-act="tradeNo">Ablehnen</button>`;
+    if (iAmFrom || mode==='local') h+=`<button class="pill small" data-act="tradeCancel">Zurückziehen</button>`;
+    if (!iAmTarget && !iAmFrom) h+=`<span class="hint">Warte auf die Antwort …</span>`;
+    return h+'</div>'+tools(false);
+  }
+  if (!mine){
+    const sub = spectator ? 'Du schaust diesem Spiel zu.' : S.phase==='bet' ? 'Überlegt, ob eine Schmugglerwette drin ist.' : S.phase==='buy' ? 'Entscheidet gerade über einen Kauf.' : S.phase==='end' ? 'Erledigt noch Geschäfte.' : 'Macht sich bereit zum Würfeln.';
+    return `<div><div class="d-title">${whoTitle}</div><div class="d-sub">${sub}</div></div><div class="d-actions">${mode==='online'&&S.host===myId?'<button class="pill small" data-act="forceSkip">Zug überspringen</button>':''}</div>${tools(false)}`;
+  }
+  const can=S.phase==='roll'||S.phase==='end';
+  let sub='', act='', wide='';
+  if (S.phase==='roll'){
+    if (p.money<0){ sub=`Du bist mit ${fmt(-p.money)} im Minus. Verkaufe oder verpfände etwas – oder gib auf.`; act=`<button class="pill primary" data-act="manage">Besitz verwalten</button><button class="pill danger" data-act="bankrupt">Bankrott erklären</button>`; }
+    else if (p.jail){ sub=`Du sitzt in der Arrestbake (Versuch ${p.jail} von 3).`; act=`<button class="pill primary" data-act="roll">Pasch versuchen</button><button class="pill" data-act="payJail" ${p.money<50?'disabled':''}>50 Cr zahlen</button>${p.jailCards?`<button class="pill" data-act="jailCard">Freikarte</button>`:''}`; }
+    else { sub=S.again?'Pasch! Du darfst noch einmal würfeln.':'Würfle, um loszufliegen.'; act=`<button class="pill primary" data-act="roll">Würfeln</button>`; }
+  } else if (S.phase==='buy'){
+    const i=S.pendingBuy, sp=SPACES[i];
+    sub=p.money<sp.price?'Dafür reichen deine Credits nicht.':'Diese Welt gehört noch niemandem.';
+    wide=`<button class="deedline d-wide" data-act="tile" data-i="${i}" style="--g:${spaceColor(i)};border:0;color:inherit;font:inherit;cursor:pointer;text-align:left"><span class="sw"></span><span><span class="nm">${esc(sp.name)}</span><br><span class="hint">${sp.t==='prop'?esc(GROUPS[sp.g].name)+' · Gebühr ab '+sp.rent[0]+' Cr':sp.t==='gate'?'Sprungtor · 25–200 Cr':'Anlage · 4× oder 10× Würfel'}</span></span><span class="pr">${fmt(sp.price)}</span></button>`;
+    act=`<button class="pill gold" data-act="buy" ${p.money<sp.price?'disabled':''}>Kaufen</button><button class="pill" data-act="pass">Verzichten</button>`;
+  } else if (S.phase==='bet'){
+    sub='Schmugglerwette: Setz Credits aufs Glücksrad – von 0× bis 3× ist alles drin.';
+    act=BET_STAKES.map(x=>`<button class="pill gold" data-act="bet" data-s="${x}" ${p.money<x?'disabled':''}>${x} Cr</button>`).join('')+`<button class="pill" data-act="bet" data-s="0">Nicht wetten</button>`;
+  } else if (S.phase==='end'){
+    if (p.money<0){ sub=`Du schuldest ${fmt(-p.money)}. Verpfände Welten oder verkaufe Bauten – oder gib auf.`; act=`<button class="pill primary" data-act="manage">Besitz verwalten</button><button class="pill danger" data-act="bankrupt">Bankrott erklären</button>`; }
+    else { sub='Baue, handle oder beende deinen Zug.'; act=`<button class="pill primary" data-act="end">Zug beenden</button>`; }
+  }
+  return `<div><div class="d-title">${whoTitle}</div><div class="d-sub">${sub}</div></div><div class="d-actions">${act}</div>${wide}${tools(can)}`;
+}
+function renderDock(S){
+  const html=dockHtml(S), inner=$('#dockInner');
+  if (html!==dockLast){ dockLast=html; inner.classList.remove('swap'); void inner.offsetWidth; inner.innerHTML=html; inner.classList.add('swap'); }
+  updateBusy();
+}
+let tickerLast='';
+function renderTicker(S){ const l=S.log[S.log.length-1]; const t=l?l.m:''; if (t===tickerLast) return; tickerLast=t; const el=$('#tickerText'); el.classList.remove('swap'); void el.offsetWidth; el.textContent=t; el.classList.add('swap'); }
+function renderGame(force){
+  const S=state; if (!S || !S.order) return;
+  if (animating && !force){ updateBusy(); return; }
+  renderPlayers(S); renderDock(S); renderTicker(S); updateBusy(); layoutGoal();
+}
+
+/* modals */
+const modal=$('#modal');
+function openModal(kind,arg){ modalKind=kind; modalArg=arg; refreshModal(true); modal.classList.remove('is-hidden'); modal.setAttribute('aria-hidden','false'); }
+function closeModal(){ if (!modalKind && modal.classList.contains('is-hidden')) return; modal.classList.add('is-hidden'); modal.setAttribute('aria-hidden','true'); modalKind=null; if (selectedTile!=null){ selectedTile=null; highlightTile(); } }
+function refreshModal(force){
+  if (!modalKind) return;
+  if (!force && (modalKind==='trade'||modalKind==='rules')) return;
+  let html='';
+  if (modalKind==='tile') html=tileModal(modalArg);
+  else if (modalKind==='manage') html=manageModal();
+  else if (modalKind==='rules') html=rulesModal();
+  else if (modalKind==='trade') html=tradeModal();
+  else if (modalKind==='log') html=logModal();
+  if (html===null){ closeModal(); return; }
+  const sc=modal.querySelector('.sheet')?.scrollTop||0;
+  modal.innerHTML=`<div class="sheet glass" role="dialog" aria-modal="true">${html}</div>`;
+  if (!force) modal.querySelector('.sheet').scrollTop=sc;
+  if (modalKind==='trade') wireTrade();
+}
+function openTile(i){ selectedTile=i; highlightTile(); openModal('tile',i); }
+const closeBtn=`<button class="ic" data-act="close" aria-label="Schließen"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>`;
+function deedHtml(i){
+  const sp=SPACES[i], S=state, pr=S?.props?.[i];
+  let rows='';
+  if (sp.t==='prop'){
+    const labels=['Grundgebühr','1 Außenposten','2 Außenposten','3 Außenposten','4 Außenposten','Zitadelle'];
+    rows=sp.rent.map((r,k)=>`<tr class="${pr&&pr.owner&&pr.houses===k?'on':''}"><td>${labels[k]}</td><td>${r} Cr</td></tr>`).join('')
+      +`<tr><td>Ganze Gruppe ohne Bauten</td><td>${sp.rent[0]*2} Cr</td></tr><tr><td>Baukosten je Stufe</td><td>${GROUPS[sp.g].house} Cr</td></tr>`;
+  } else if (sp.t==='gate') rows=[1,2,3,4].map(n=>`<tr><td>${n} Sprungtor${n>1?'e':''} im Besitz</td><td>${25*2**(n-1)} Cr</td></tr>`).join('');
+  else if (sp.t==='util') rows=`<tr><td>Eine Anlage</td><td>4× Würfel</td></tr><tr><td>Beide Anlagen</td><td>10× Würfel</td></tr>`;
+  if (BUYABLE(i)) rows+=`<tr><td>Kaufpreis</td><td>${sp.price} Cr</td></tr><tr><td>Pfandwert</td><td>${sp.price/2} Cr</td></tr>`;
+  const sub = sp.t==='prop'?GROUPS[sp.g].name:sp.t==='gate'?'Sprungtor':sp.t==='util'?'Anlage':sp.t==='card'?'Kartenfeld':sp.t==='tax'?'Abgabe':'Sonderfeld';
+  const desc={start:'Wer hier vorbeifliegt oder landet, kassiert 200 Cr.',jail:'Wer nur landet, ist zu Besuch. Wer hierher geschickt wird, sitzt fest, bis ein Pasch fällt, 50 Cr bezahlt werden oder eine Freikarte eingesetzt wird.',free:'Hier passiert nichts. Durchatmen.',tojail:'Wer hier landet, fliegt direkt in die Arrestbake.',card:'Ziehe eine Nachricht vom Stapel und befolge sie.',tax:`Zahle ${sp.amount} Cr an die Bank.`}[sp.t]||'';
+  const owner = pr&&pr.owner ? `<p class="hint">Besitzer: <b style="color:${S.players[pr.owner].color}">${esc(nm(S,pr.owner))}</b>${pr.mort?' · verpfändet':''}${pr.houses===5?' · Zitadelle':pr.houses?` · ${pr.houses} Außenposten`:''}</p>` : (BUYABLE(i)?'<p class="hint">Diese Welt ist noch frei.</p>':'');
+  return `<div class="deed" style="--g:${spaceColor(i)}"><div class="band"><small>${esc(sub)}</small><h3>${esc(sp.name)}</h3></div>${rows?`<table>${rows}</table>`:`<p>${esc(desc)}</p>`}</div>${owner}`;
+}
+function manageButtons(S,me,i){
+  const sp=SPACES[i], pr=S.props[i], b=[];
+  if (sp.t==='prop'){ const e=buildErr(S,me,i); b.push(`<button class="pill small" data-act="build" data-i="${i}" ${e?`disabled title="${esc(e)}"`:''}>+ ${pr.houses===4?'Zitadelle':'Außenposten'} · ${GROUPS[sp.g].house}</button>`); if (pr.houses>0) b.push(`<button class="pill small" data-act="sell" data-i="${i}" ${sellErr(S,me,i)?'disabled':''}>Verkaufen · +${GROUPS[sp.g].house/2}</button>`); }
+  if (pr.mort) b.push(`<button class="pill small" data-act="unmort" data-i="${i}" ${unmortErr(S,me,i)?'disabled':''}>Auslösen · ${unmortCost(i)}</button>`);
+  else b.push(`<button class="pill small" data-act="mort" data-i="${i}" ${mortErr(S,me,i)?'disabled':''}>Verpfänden · +${sp.price/2}</button>`);
+  return b.join('');
+}
+function tileModal(i){
+  const S=state, me=actorId();
+  let extra='';
+  if (S && S.props && BUYABLE(i) && S.props[i].owner && S.props[i].owner===me && canManage(S,me)) extra=`<div class="row" style="flex-wrap:wrap">${manageButtons(S,me,i)}</div>`;
+  return `<div class="sheet-head"><div class="eyebrow">Feld ${i}</div>${closeBtn}</div>${deedHtml(i)}${extra}`;
+}
+function manageModal(){
+  const S=state; if (!S || !S.players) return null;
+  const me=actorId(); if (!S.players[me]) return null;
+  const mine=Object.keys(S.props).map(Number).filter(i=>S.props[i].owner===me).sort((a,b)=>(SPACES[a].g??9)-(SPACES[b].g??9)||a-b);
+  const can=canManage(S,me);
+  const lvl=pr=>pr.houses===5?'<span class="lvl cit"><i></i></span>':`<span class="lvl">${[0,1,2,3].map(k=>`<i class="${k<pr.houses?'on':''}"></i>`).join('')}</span>`;
+  const rows=mine.map(i=>{ const sp=SPACES[i], pr=S.props[i]; return `<div class="mrow"><div><div class="nm"><span class="cdot" style="--c:${spaceColor(i)}"></span>${esc(sp.name)}${sp.t==='prop'?lvl(pr):''}</div><div class="sub">${sp.t==='prop'?esc(GROUPS[sp.g].name)+(ownsGroup(S,me,sp.g)?' · komplett':''):sp.t==='gate'?'Sprungtor':'Anlage'}${pr.mort?' · verpfändet':''}</div></div><div class="btns">${can?manageButtons(S,me,i):''}</div></div>`; }).join('');
+  return `<div class="sheet-head"><div><div class="eyebrow">${esc(nm(S,me))} · ${fmt(S.players[me].money)}</div><h2>Besitz verwalten</h2></div>${closeBtn}</div>
+    <p class="hint">${can?'Baue gleichmäßig auf kompletten Gruppen. Verkaufte Bauten bringen die Hälfte zurück, Verpfänden den halben Kaufpreis.':'Verwalten kannst du nur während deines Zuges.'}</p>
+    <div class="mlist">${rows||'<p class="hint">Du besitzt noch keine Welten.</p>'}</div>`;
+}
+function tradeModal(){
+  const S=state, me=actorId(); if (!S || !canManage(S,me)) return null;
+  const others=S.order.filter(o=>o!==me && !S.players[o].out);
+  if (!others.length) return null;
+  const partner=modalArg && others.includes(modalArg) ? modalArg : others[0]; modalArg=partner;
+  const checks=(id,pref)=>{ const l=tradable(S,id); return l.length?l.map(i=>`<label><input type="checkbox" data-side="${pref}" value="${i}"><span class="cdot" style="--c:${spaceColor(i)}"></span>${esc(SPACES[i].name)}${S.props[i].mort?' <span class="hint">(verpfändet)</span>':''}</label>`).join(''):'<p class="hint">Nichts Handelbares.</p>'; };
+  return `<div class="sheet-head"><div><div class="eyebrow">Handel</div><h2>Angebot schnüren</h2></div>${closeBtn}</div>
+    <div class="field"><label class="lbl" for="trPartner">Handelspartner</label><select id="trPartner">${others.map(o=>`<option value="${esc(o)}" ${o===partner?'selected':''}>${esc(nm(S,o))} · ${fmt(S.players[o].money)}</option>`).join('')}</select></div>
+    <div class="tradecols">
+      <div class="tcol"><span class="lbl">Du gibst</span><div class="checks">${checks(me,'give')}</div><label class="lbl" for="trGiveM">Credits</label><input id="trGiveM" type="number" min="0" max="${Math.max(0,S.players[me].money)}" value="0" inputmode="numeric"></div>
+      <div class="tcol"><span class="lbl">${esc(nm(S,partner))} gibt</span><div class="checks">${checks(partner,'get')}</div><label class="lbl" for="trGetM">Credits</label><input id="trGetM" type="number" min="0" max="${Math.max(0,S.players[partner].money)}" value="0" inputmode="numeric"></div>
+    </div>
+    <p class="hint">Welten mit Bauten in ihrer Gruppe können nicht gehandelt werden.</p>
+    <button class="pill primary wide" data-act="tradeSend">Angebot senden</button>`;
+}
+function wireTrade(){ const sel=$('#trPartner'); if (sel) sel.onchange=()=>{ modalArg=sel.value; refreshModal(true); }; }
+function logModal(){ const S=state; if (!S||!S.log) return null; return `<div class="sheet-head"><h2>Logbuch</h2>${closeBtn}</div><ol class="loglist">${S.log.slice().reverse().map(l=>`<li>${esc(l.m)}</li>`).join('')}</ol>`; }
+function rulesModal(){
+  return `<div class="sheet-head"><h2>So wird gespielt</h2>${closeBtn}</div>
+  <div class="rules">
+    <p>Jeder Pilot startet mit 1 500 Cr am Raumhafen Nova. Wer als Letzter nicht bankrott ist, wird Sternenbaron.</p>
+    <dl>
+      <div><dt>Würfeln und fliegen</dt><dd>Zwei Würfel bestimmen deinen Flug. Bei einem Pasch würfelst du noch einmal – beim dritten Pasch in Folge geht es in die Arrestbake.</dd></div>
+      <div><dt>Welten kaufen</dt><dd>Landest du auf einer freien Welt, einem Sprungtor oder einer Anlage, darfst du kaufen.</dd></div>
+      <div><dt>Landegebühren</dt><dd>Fremder Besitz kostet. Eine komplette Farbgruppe verdoppelt die Grundgebühr. Sprungtore kosten 25 bis 200 Cr, Anlagen 4× oder 10× die Würfelsumme.</dd></div>
+      <div><dt>Bauen</dt><dd>Mit einer kompletten Gruppe baust du gleichmäßig bis zu vier Außenposten pro Welt, danach eine Zitadelle.</dd></div>
+      <div><dt>Ereignisse und Glücksrad</dt><dd>Holo-Funk und Schmugglerfunk bringen Fluggebühren, Steuerprüfungen und Stürme. Beim Glücksrad entscheidet das Rad, wie viel Prozent deines Vermögens fällig werden, wie hoch dein Gewinn ausfällt oder ob deine Schmugglerwette aufgeht.</dd></div>
+      <div><dt>Arrestbake</dt><dd>Raus kommst du mit Pasch, 50 Cr Kaution oder Freikarte. Nach drei Fehlversuchen zahlst du automatisch.</dd></div>
+      <div><dt>Geldnot</dt><dd>Verpfände Welten (halber Kaufpreis) oder verkaufe Bauten (halber Baupreis). Reicht es nicht, erklärst du Bankrott.</dd></div>
+      <div><dt>Handel</dt><dd>In deinem Zug kannst du Mitspielern Welten und Credits anbieten.</dd></div>
+    </dl>
+    <p class="hint">Steuerung: Ziehen dreht die Kamera, Mausrad oder zwei Finger zoomen, ein Tipp auf ein Feld zeigt Details. Online braucht niemand ein Konto: Wer den Hangar erstellt, ist Gastgeber und muss die Seite offen lassen, solange gespielt wird.</p>
+  </div>`;
+}
+modal.addEventListener('click',e=>{ if (e.target===modal) closeModal(); });
+document.addEventListener('keydown',e=>{
+  if (e.key==='Escape' && modalKind) closeModal();
+  if ((e.key===' '||e.key==='Enter') && view==='game' && !modalKind && document.activeElement===document.body){ const b=$('#dockInner [data-act="roll"]:not(:disabled), #dockInner [data-act="end"]:not(:disabled)'); if (b && !(writing||animating)){ e.preventDefault(); b.click(); } }
+});
+
+/* actions */
+const GAME_ACTS=new Set(['bet','roll','buy','pass','payJail','jailCard','end','bankrupt','forceSkip','tradeYes','tradeNo','tradeCancel']);
+const handlers={
+  tab:d=>{ if (d.tab===menuTab) return; if (menuTab==='local') saveLocal(); menuTab=d.tab; store.set('sb-tab',menuTab); const seg=$('.seg'); seg.dataset.tab=menuTab; seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.tab===menuTab))); renderPane(); },
+  ship:d=>{ pickedShip=+d.k; store.set('sb-ship',pickedShip); document.querySelectorAll('#shipPick .ship').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.k===pickedShip))); $('#shipName').textContent=SHIPS[pickedShip].name; },
+  cnt:d=>{ saveLocal(); localCount=clamp(localCount+(+d.d),2,6); store.set('sb-localCount',localCount); renderPane(); },
+  create:()=>createOnline(),
+  join:()=>joinOnline($('#inCode').value),
+  joinCode:d=>joinOnline(d.code),
+  resumeOnline:()=>resumeOnline(),
+  resumeLocal:()=>{ const S=store.get('sb-local'); if (!S) return; mode='local'; gameCode=null; hadGameState=false; onState(S); },
+  startLocal:()=>startLocal(),
+  menu:()=>goMenu(),
+  rules:()=>openModal('rules'),
+  log:()=>openModal('log'),
+  copyCode:()=>{ const code=state?.code||''; try { navigator.clipboard.writeText(code).then(()=>toast('Code kopiert.',true),()=>selectCode()); } catch(e){ selectCode(); } },
+  startOnline:()=>startOnline(),
+  leaveLobby:()=>leaveLobby(),
+  deleteGame:()=>{ if (isHost){ hostBroadcast({type:'closed'}); store.del('sb-host-'+gameCode); } store.del('sb-online'); setTimeout(goMenu,200); },
+  roll:()=>commit(actRoll),
+  buy:()=>commit(actBuy),
+  pass:()=>commit(actPass),
+  bet:d=>commit(S=>actBet(S,+d.s)),
+  payJail:()=>commit(actPayJail),
+  jailCard:()=>commit(actJailCard),
+  end:()=>commit(actEnd),
+  bankrupt:()=>commit(S=>actBankrupt(S,curId(S))),
+  forceSkip:()=>commit(actForceSkip),
+  manage:()=>openModal('manage'),
+  tile:d=>openTile(+d.i),
+  build:d=>commit(S=>actBuild(S,actorId(),+d.i)),
+  sell:d=>commit(S=>actSell(S,actorId(),+d.i)),
+  mort:d=>commit(S=>actMort(S,actorId(),+d.i)),
+  unmort:d=>commit(S=>actUnmort(S,actorId(),+d.i)),
+  trade:()=>openModal('trade',null),
+  tradeSend:()=>{
+    const S=state, me=actorId(), to=$('#trPartner').value;
+    const pick=side=>[...modal.querySelectorAll(`input[data-side="${side}"]:checked`)].map(x=>+x.value);
+    const t={from:me,to,give:{props:pick('give'),money:Math.max(0,Math.floor(+$('#trGiveM').value||0))},get:{props:pick('get'),money:Math.max(0,Math.floor(+$('#trGetM').value||0))}};
+    const err=tradeErr(S,t); if (err){ sfx.play('error'); return toast(err); }
+    closeModal(); commit(S=>actPropose(S,t));
+  },
+  tradeYes:()=>commit(S=>actTradeAnswer(S,true)),
+  tradeNo:()=>commit(S=>actTradeAnswer(S,false)),
+  tradeCancel:()=>commit(actTradeCancel),
+  close:()=>closeModal(),
+};
+function selectCode(){ const el=$('#codeText'); if (!el) return; const r=document.createRange(); r.selectNodeContents(el); const s=getSelection(); s.removeAllRanges(); s.addRange(r); toast('Code markiert – jetzt kopieren.'); }
+function onAct(e){
+  const b=e.target.closest('[data-act]'); if (!b || b.disabled) return;
+  const a=b.dataset.act, h=handlers[a]; if (!h) return;
+  if (GAME_ACTS.has(a) && (writing||animating)) return;
+  e.preventDefault(); if (!['roll','buy','dice'].includes(a)) sfx.play('tap'); h(b.dataset);
+}
+document.addEventListener('click',e=>{ if (e.target.closest('#v-menu,#v-lobby,#v-loading,#v-game,#modal')) onAct(e); });
+document.addEventListener('keydown',e=>{ if (e.key==='Enter' && e.target.id==='inCode') joinOnline(e.target.value); });
+document.addEventListener('input',e=>{ if (e.target.id==='inName') store.set('sb-name',e.target.value.trim().slice(0,16)); });
+
+/* ============================================================ boot */
+async function boot(){
+  try { await Promise.race([Promise.all(['700 40px Rajdhani','600 40px Rajdhani','600 16px Inter'].map(f=>document.fonts.load(f))),new Promise(r=>setTimeout(r,2500))]); } catch(e){}
+  buildBoard(); resize(); showView('menu'); renderMenu(); requestAnimationFrame(loop);
+  myId=getPid(); P2P=typeof window.Peer==='function';
+  capsReady=true;
+  if (view==='menu') renderMenu();
+}
+boot();
+</script>
+
+</body>
+</html>
